@@ -489,9 +489,12 @@ perform the upgrade if necessary.  See C<L</svtype>>.
 				       2: For PVCV, whether CvUNIQUE(cv)
 					  refers to an eval or once only
 					  [CvEVAL(cv), CvSPECIAL(cv)]
-                                       3: HV: informally reserved by DAPM
-                                          for vtables */
-#define SVphv_CLASS	SVf_FAKE    /* DAPM wants it for vtables, cperl for classes */
+                                       3: HV: DAPM wants it for vtables, cperl for classes. */
+#define SVphv_CLASS	(SVf_FAKE|SVp_POK)
+				    /* 4: HV: READONLY hash is RESTRICTED,
+                                          fetches for missing keys will die. */
+#define SVphv_RESTRICTED (SVf_FAKE|SVf_BREAK)
+
 #define SVf_OOK		0x02000000  /* has valid offset value. For a PVHV this
 				       means that a hv_aux struct is present
 				       after the main array */
