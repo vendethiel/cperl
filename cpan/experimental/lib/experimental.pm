@@ -3,11 +3,17 @@ $experimental::VERSION = '0.016_01c'; #cperl fixed lexical_topic
 use strict;
 use warnings;
 use version ();
+use Config ();
 
 use feature ();
 use Carp qw/croak carp/;
 
-my %warnings = map { $_ => 1 } grep { /^experimental::/ } keys %warnings::Offsets;
+my @keys = keys %warnings::Offsets;
+unless (@keys and defined &warnings::keys) { # XS warnings
+	@keys = grep { /^experimental::/ } warnings::keys();
+}
+
+my %warnings = map { $_ => 1 } grep { /^experimental::/ } @keys;
 my %features = map { $_ => 1 } $] > 5.015006 ? keys %feature::feature : do {
 	my @features;
 	if ($] >= 5.010) {
@@ -128,7 +134,7 @@ experimental - Experimental features made easy
 
 =head1 VERSION
 
-version 0.016
+version 0.016_01c
 
 =head1 SYNOPSIS
 

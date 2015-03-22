@@ -322,3 +322,11 @@ Invalid \0 character in string for SYMBOL: "a\0hidden" at - line 5.
 Invalid \0 character in string for SYMBOL: "a\0hidden" at - line 6.
 ok
 ok
+########
+# from t/op/gv.t
+use warnings;
+no warnings "once";
+my $copy = *XX;
+my $a = sprintf "%d", $copy;
+EXPECT
+Argument "*main::XX" isn't numeric in sprintf at - line 5.
