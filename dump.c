@@ -1675,28 +1675,30 @@ const struct flag_to_name second_sv_flags_names[] = {
 };
 
 const struct flag_to_name cv_flags_names[] = {
-    {CVf_ANON, "ANON,"},
+    {CVf_ANON,   "ANON,"},
     {CVf_UNIQUE, "UNIQUE,"},
-    {CVf_CLONE, "CLONE,"},
+    {CVf_CLONE,  "CLONE,"},
     {CVf_CLONED, "CLONED,"},
-    {CVf_CONST, "CONST,"},
-    {CVf_NODEBUG, "NODEBUG,"},
+    {CVf_CONST,  "CONST,"},
+    {CVf_ISXSUB, "ISXSUB,"},
+    {CVf_NODEBUG,"NODEBUG,"},
     {CVf_LVALUE, "LVALUE,"},
     {CVf_METHOD, "METHOD,"},
     {CVf_WEAKOUTSIDE, "WEAKOUTSIDE,"},
     {CVf_CVGV_RC, "CVGV_RC,"},
     {CVf_DYNFILE, "DYNFILE,"},
-    {CVf_AUTOLOAD, "AUTOLOAD,"},
+    {CVf_AUTOLOAD,"AUTOLOAD,"},
     {CVf_HASEVAL, "HASEVAL,"},
     {CVf_SLABBED, "SLABBED,"},
-    {CVf_NAMED, "NAMED,"},
+    {CVf_NAMED,   "NAMED,"},
     {CVf_LEXICAL, "LEXICAL,"},
-    {CVf_ISXSUB, "ISXSUB,"},
-    {CVf_TYPED, "TYPED,"},
     {CVf_ANONCONST, "ANONCONST,"},
-    {CVf_HASSIG, "HASSIG,"},
-    {CVf_PURE, "PURE,"},
-    {CVf_INLINABLE, "INLINABLE,"}
+    {CVf_HASSIG,  "HASSIG,"},
+    {CVf_TYPED,   "TYPED,"},
+    {CVf_PURE,    "PURE,"},
+    {CVf_STATIC,  "STATIC,"},
+    {CVf_INLINABLE, "INLINABLE,"},
+    {CVf_MULTI,   "MULTI,"}
 };
 
 const struct flag_to_name hv_flags_names[] = {
