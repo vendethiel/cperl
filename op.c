@@ -17547,7 +17547,7 @@ Perl_rpeep(pTHX_ OP *o)
                             || (SvROK(gv) && (cv = (CV*)SvRV((SV*)gv))
                                           && SvTYPE(cv) == SVt_PVCV))) {
                         if (CvINLINABLE(cv)) {
-                            DEBUG_v(deb("rpeep: inline %s %s\n", meth ? "method" : "sub",
+                            DEBUG_k(deb("rpeep: inline %s %s\n", meth ? "method" : "sub",
                                         HEK_KEY(CvNAME_HEK(cv))));
                             o2 = S_cv_do_inline(o, o2, cv, !!meth);
                         }
