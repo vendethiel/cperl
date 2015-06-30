@@ -163,7 +163,7 @@ our ($db_version, $use_XSLoader, $splice_end_array_no_length, $splice_end_array,
 use Carp;
 
 
-$VERSION = "1.840" ;
+$VERSION = "1.840_01" ;
 $VERSION = eval $VERSION; # needed for dev releases
 
 {
@@ -238,7 +238,7 @@ sub AUTOLOAD {
     my ($error, $val) = constant($constname);
     Carp::croak $error if $error;
     no strict 'refs';
-    *{$AUTOLOAD} = sub { $val };
+    *{$AUTOLOAD} = sub () { $val };
     goto &{$AUTOLOAD};
 }           
 

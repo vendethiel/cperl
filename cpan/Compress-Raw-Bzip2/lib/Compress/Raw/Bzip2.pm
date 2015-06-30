@@ -11,7 +11,8 @@ use Carp ;
 use bytes ;
 our ($VERSION, $XS_VERSION, @ISA, @EXPORT, $AUTOLOAD);
 
-$VERSION = '2.070';
+$VERSION = '2.070c';
+$VERSION =~ s/c$//;
 $XS_VERSION = $VERSION; 
 $VERSION = eval $VERSION;
 
@@ -47,7 +48,7 @@ sub AUTOLOAD {
     my ($error, $val) = constant($constname);
     Carp::croak $error if $error;
     no strict 'refs';
-    *{$AUTOLOAD} = sub { $val };
+    *{$AUTOLOAD} = sub () { $val };
     goto &{$AUTOLOAD};
 
 }

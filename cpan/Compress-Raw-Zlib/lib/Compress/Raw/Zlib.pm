@@ -10,7 +10,8 @@ use warnings ;
 use bytes ;
 our ($VERSION, $XS_VERSION, @ISA, @EXPORT, %EXPORT_TAGS, @EXPORT_OK, $AUTOLOAD, %DEFLATE_CONSTANTS, @DEFLATE_CONSTANTS);
 
-$VERSION = '2.072';
+$VERSION = '2.072c';
+$VERSION =~ s/c$//;
 $XS_VERSION = $VERSION; 
 $VERSION = eval $VERSION;
 
@@ -111,7 +112,7 @@ sub AUTOLOAD {
     my ($error, $val) = constant($constname);
     Carp::croak $error if $error;
     no strict 'refs';
-    *{$AUTOLOAD} = sub { $val };
+    *{$AUTOLOAD} = sub () { $val };
     goto &{$AUTOLOAD};
 }
 
