@@ -1108,11 +1108,12 @@ sub tree {
 # 3        <$> gvsv(*a) s ->4
 
 # If the second of the marked numbers there isn't 1, it means you need
-# to update the corresponding magic number in the next line.
+# to update the corresponding magic number in the next line += 16.
 # Remember, this needs to stay the last things in the module.
 
-my $cop_seq_mnum = 16;
-$cop_seq_base = svref_2object(eval 'sub{0;}')->START->cop_seq + $cop_seq_mnum;
+my $start = svref_2object(eval 'sub{0;}')->START;
+$cop_seq_base = ref $start eq 'B::NULL' ? 0 : $start->cop_seq;
+$cop_seq_base += 16;
 
 1;
 
