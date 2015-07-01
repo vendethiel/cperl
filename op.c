@@ -9963,7 +9963,8 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
     if (slab)
 	Slab_to_ro(slab);
 #endif
-    if (cv && name && block && CvOUTSIDE(cv) && !CvEVAL(CvOUTSIDE(cv)))
+      if (cv && !SvIS_FREED(cv) && name && block
+          && CvOUTSIDE(cv) && !CvEVAL(CvOUTSIDE(cv)))
 	pad_add_weakref(cv);
     }
     return cv;
@@ -10236,9 +10237,9 @@ Perl_newXS_len_flags(pTHX_ const char *name, STRLEN len,
             }
         }
     
-        if (cv)				/* must reuse cv if autoloaded */
+        if (cv)	{			/* must reuse cv if autoloaded */
             cv_undef(cv);
-        else {
+        } else {
             cv = MUTABLE_CV(newSV_type(SVt_PVCV));
             if (name) {
                 GvCV_set(gv,cv);
@@ -10279,8 +10280,8 @@ Perl_newXS_len_flags(pTHX_ const char *name, STRLEN len,
             CvANON_on(cv);
     } /* <- not a conditional branch */
 
-
-    sv_setpv(MUTABLE_SV(cv), proto);
+    if (!SvIS_FREED(cv)) /* not freed by process_special_blocks */
+        sv_setpv(MUTABLE_SV(cv), proto);
     if (interleave) LEAVE;
     return cv;
 }
