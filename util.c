@@ -701,7 +701,7 @@ Analyses the string in order to make fast searches on it using C<fbm_instr()>
 */
 
 void
-Perl_fbm_compile(pTHX_ SV *sv, U32 flags)
+Perl_fbm_compile(pTHX_ PV *sv, U32 flags)
 {
     const U8 *s;
     MAGIC *mg;
@@ -789,7 +789,7 @@ then.
 */
 
 char *
-Perl_fbm_instr(pTHX_ unsigned char *big, unsigned char *bigend, SV *littlestr, U32 flags)
+Perl_fbm_instr(pTHX_ unsigned char *big, unsigned char *bigend, PV *littlestr, U32 flags)
 {
     STRLEN l;
     unsigned char *s;

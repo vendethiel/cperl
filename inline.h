@@ -55,10 +55,8 @@ S_CvDEPTHp(const CV * const sv)
 PERL_STATIC_INLINE char *
 S_strip_spaces(pTHX_ const char * orig, STRLEN * const len)
 {
-    SV * tmpsv;
-    char * tmps;
-    tmpsv = newSVpvn_flags(orig, *len, SVs_TEMP);
-    tmps = SvPVX(tmpsv);
+    PV * tmpsv = newSVpvn_flags(orig, *len, SVs_TEMP);
+    char * tmps = SvPVX(tmpsv);
     while ((*len)--) {
 	if (!isSPACE(*orig))
 	    *tmps++ = *orig;
@@ -75,7 +73,7 @@ S_strip_spaces(pTHX_ const char * orig, STRLEN * const len)
 #if defined(PERL_CORE) || defined(PERL_EXT)
 /* assumes get-magic and stringification have already occurred */
 PERL_STATIC_INLINE STRLEN
-S_MgBYTEPOS(pTHX_ MAGIC *mg, SV *sv, const char *s, STRLEN len)
+S_MgBYTEPOS(pTHX_ MAGIC *mg, PV *sv, const char *s, STRLEN len)
 {
     assert(mg->mg_type == PERL_MAGIC_regex_global);
     assert(mg->mg_len != -1);
@@ -258,7 +256,7 @@ S_SvPADSTALE_off(SV *sv)
 }
 #if defined(PERL_CORE) || defined (PERL_EXT)
 PERL_STATIC_INLINE STRLEN
-S_sv_or_pv_pos_u2b(pTHX_ SV *sv, const char *pv, STRLEN pos, STRLEN *lenp)
+S_sv_or_pv_pos_u2b(pTHX_ PV *sv, const char *pv, STRLEN pos, STRLEN *lenp)
 {
     PERL_ARGS_ASSERT_SV_OR_PV_POS_U2B;
     if (SvGAMAGIC(sv)) {
@@ -1564,7 +1562,7 @@ S_cx_popeval(pTHX_ PERL_CONTEXT *cx)
     PL_in_eval = CxOLD_IN_EVAL(cx);
     assert(!(PL_in_eval & 0xc0));
     PL_eval_root = cx->blk_eval.old_eval_root;
-    sv = cx->blk_eval.cur_text;
+    sv = (SV*)cx->blk_eval.cur_text;
     if (sv && CxEVAL_TXT_REFCNTED(cx)) {
         cx->blk_eval.cur_text = NULL;
         SvREFCNT_dec_NN(sv);
