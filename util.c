@@ -1195,7 +1195,7 @@ S_mess_alloc(pTHX)
     SvFLAGS(sv) = SVt_PVMG;
     SvANY(sv) = (void*)any;
     SvPV_set(sv, NULL);
-    SvREFCNT(sv) = 1 << 30; /* practically infinite */
+    SvREFCNT(sv) = SV_REFCNT_MAX;
     PL_mess_sv = sv;
     return sv;
 }
