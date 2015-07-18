@@ -4376,6 +4376,8 @@ Gid_t getegid (void);
                                   	   == (DEBUG_l_FLAG|DEBUG_v_FLAG))
 #  define DEBUG_mv_TEST_ UNLIKELY((PL_debug & (DEBUG_m_FLAG|DEBUG_v_FLAG)) \
                                   	   == (DEBUG_m_FLAG|DEBUG_v_FLAG))
+#  define DEBUG_Cv_TEST_ UNLIKELY((PL_debug & (DEBUG_C_FLAG|DEBUG_v_FLAG)) \
+                                  	   == (DEBUG_C_FLAG|DEBUG_v_FLAG))
 
 #ifdef DEBUGGING
 
@@ -4416,6 +4418,7 @@ Gid_t getegid (void);
 #  define DEBUG_Lv_TEST DEBUG_Lv_TEST_
 #  define DEBUG_lv_TEST DEBUG_lv_TEST_
 #  define DEBUG_mv_TEST DEBUG_mv_TEST_
+#  define DEBUG_Cv_TEST DEBUG_Cv_TEST_
 
 #  define PERL_DEB(a)                  a
 #  define PERL_DEB2(a,b)               a
@@ -4459,6 +4462,7 @@ Gid_t getegid (void);
 #  define DEBUG_Lv(a) DEBUG__(DEBUG_Lv_TEST, a)
 #  define DEBUG_lv(a) DEBUG__(DEBUG_lv_TEST, a)
 #  define DEBUG_mv(a) DEBUG__(DEBUG_mv_TEST, a)
+#  define DEBUG_Cv(a) DEBUG__(DEBUG_Cv_TEST, a)
 
 #  define DEBUG_S(a) DEBUG__(DEBUG_S_TEST, a)
 #  define DEBUG_T(a) DEBUG__(DEBUG_T_TEST, a)
@@ -4513,6 +4517,7 @@ Gid_t getegid (void);
 #  define DEBUG_Lv_TEST (0)
 #  define DEBUG_lv_TEST (0)
 #  define DEBUG_mv_TEST (0)
+#  define DEBUG_Cv_TEST (0)
 
 #  define PERL_DEB(a)
 #  define PERL_DEB2(a,b)               b
@@ -4553,6 +4558,7 @@ Gid_t getegid (void);
 #  define DEBUG_Lv(a)
 #  define DEBUG_lv(a)
 #  define DEBUG_mv(a)
+#  define DEBUG_Cv(a)
 #endif /* DEBUGGING */
 
 
