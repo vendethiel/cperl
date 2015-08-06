@@ -2857,7 +2857,61 @@ S_check_hash_fields_and_hekify(pTHX_ UNOP *rop, SVOP *key_op)
 }
 
 /*
-=for apidoc s|void	|postprocess_optree	|NULLOK CV *cv|NN OP *root|NN OP **startp
+=for apidoc cv_check_inline
+
+examine an optree to determine whether it's in-lineable.
+In contrast to op_const_sv allow short op sequences which are not
+constant folded.
+max 15 ops, no new pad, no intermediate return, no recursion, ...
+cv_inline needs to translate the args, change return to jumps.
+handle args: shift, = @_ or just accept SIGNATURED subs with PERL_FAKE_SIGNATURE.
+if arg is call-by-value. make a copy.
+with local need to add SAVETMPS/FREETMPS.
+maybe keep ENTER/LEAVE
+
+$lhs = call(...); => $lhs = do {...inlined...};
+
+=cut
+*/
+
+#ifndef PERL_MAX_INLINE_OPS
+#define PERL_MAX_INLINE_OPS 15
+#endif
+
+static bool
+S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
+{
+    const OP *firstop = o;
+    unsigned short i = 0;
+
+    PERL_UNUSED_ARG(compcv);
+    PERL_ARGS_ASSERT_CV_CHECK_INLINE;
+
+    for (; o; o = o->op_next) {
+	const OPCODE type = o->op_type;
+        i++;
+
+        if (i > PERL_MAX_INLINE_OPS) return FALSE;
+	if (type == OP_NEXTSTATE || type == OP_DBSTATE
+            || type == OP_NULL   || type == OP_LINESEQ
+            || type == OP_PUSHMARK)
+            continue;
+	if (type == OP_RETURN    || type == OP_GOTO
+            || type == OP_CALLER || type == OP_WARN
+            || type == OP_DIE    || type == OP_RESET
+            || type == OP_RUNCV  || type == OP_PADRANGE)
+	    return FALSE;
+	else if (type == OP_LEAVESUB)
+	    break;
+	else if (type == OP_ENTERSUB && OpFIRST(o) == firstop) {
+	    return FALSE;
+	}
+    }
+    return TRUE;
+}
+
+/*
+=for apidoc s|void |postprocess_optree	|NULLOK CV *cv|NN OP *root|NN OP **startp
 
 do the post-compilation processing of an op_tree with specified
 root and start (startp may be updated):
@@ -2892,10 +2946,13 @@ S_postprocess_optree(pTHX_ CV *cv, OP *root, OP **startp)
     S_prune_chain_head(startp);
 
     /* now that optimizer has done its work, adjust pad values */
-    if (cv)
-        pad_tidy(IS_TYPE(root, LEAVEWRITE) ? padtidy_FORMAT
-                 : CvCLONE(cv) ? padtidy_SUBCLONE
-                 : padtidy_SUB);
+    if (cv) {
+        if (*startp && cv_check_inline(*startp, cv))
+            CvINLINABLE_on(cv);
+        pad_tidy(IS_TYPE(root, LEAVEWRITE)
+                    ? padtidy_FORMAT
+                    : CvCLONE(cv) ? padtidy_SUBCLONE : padtidy_SUB);
+    }
 }
 
 
@@ -8974,7 +9031,8 @@ Perl_cv_const_sv_or_av(const CV * const cv)
     return CvCONST(cv) ? MUTABLE_SV(CvXSUBANY(cv).any_ptr) : NULL;
 }
 
-/* op_const_sv:  examine an optree to determine whether it's in-lineable.
+/* op_const_sv:  examine an optree to determine whether it's in-lineable
+ *               into a single CONST op.
  * Can be called in 2 ways:
  *
  * !allow_lex
@@ -8989,23 +9047,21 @@ Perl_cv_const_sv_or_av(const CV * const cv)
  */
 
 static SV *
-S_op_const_sv(pTHX_ const OP *o, CV *cv, bool allow_lex)
+S_op_const_sv(pTHX_ const OP *o, CV *compcv, bool allow_lex)
 {
     SV *sv = NULL;
     bool padsv = FALSE;
 
     assert(o);
-    assert(cv);
+    assert(compcv);
 
     for (; o; o = o->op_next) {
 	const OPCODE type = o->op_type;
 
-	if (type == OP_NEXTSTATE
-         || type == OP_LINESEQ
-         || type == OP_NULL
-         || type == OP_PUSHMARK
-         || type == OP_DBSTATE)
-            continue;
+	if (type == OP_NEXTSTATE || type == OP_DBSTATE
+            || type == OP_NULL   || type == OP_LINESEQ
+            || type == OP_PUSHMARK)
+		continue;
 	if (type == OP_LEAVESUB)
 	    break;
 	if (sv)
@@ -9029,7 +9085,7 @@ S_op_const_sv(pTHX_ const OP *o, CV *cv, bool allow_lex)
 	}
     }
     if (padsv) {
-	CvCONST_on(cv);
+	CvCONST_on(compcv);
 	return NULL;
     }
     DEBUG_k(Perl_deb(aTHX_ "op_const_sv: inlined SV 0x%p\n", sv));

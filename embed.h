@@ -1714,6 +1714,7 @@
 #define const_sv_xsub(a)	S_const_sv_xsub(aTHX_ a)
 #define cop_free(a)		S_cop_free(aTHX_ a)
 #define core_type_name(a)	S_core_type_name(aTHX_ a)
+#define cv_check_inline(a,b)	S_cv_check_inline(aTHX_ a,b)
 #define dup_attrlist(a)		S_dup_attrlist(aTHX_ a)
 #define finalize_op(a)		S_finalize_op(aTHX_ a)
 #define find_and_forget_pmops(a)	S_find_and_forget_pmops(aTHX_ a)
