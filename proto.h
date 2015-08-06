@@ -8331,9 +8331,10 @@ STATIC void	S_cop_free(pTHX_ COP *cop)
 PERL_STATIC_INLINE const char *	S_core_type_name(pTHX_ core_types_t t);
 #endif
 STATIC bool	S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
-			__attribute__nonnull__(pTHX_1);
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
 #define PERL_ARGS_ASSERT_CV_CHECK_INLINE	\
-	assert(o)
+	assert(o); assert(compcv)
 
 STATIC OP *	S_dup_attrlist(pTHX_ OP *o)
 			__attribute__nonnull__(pTHX_1);
