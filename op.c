@@ -9103,10 +9103,10 @@ S_op_const_sv(pTHX_ const OP *o, CV *compcv, bool allow_lex)
  */
 
 static OP*
-S_cv_do_inline(pTHX_ const OP *o, const OP *cvop, CV *cv, bool meth)
+S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv, bool meth)
 {
     /* WIP splice inlined ENTERSUB into the current body */
-    const OP *pushmarkop = o;
+    OP *pushmarkop = o;
 
     assert(o); /* the pushmark */
     assert(cv);
@@ -9118,10 +9118,26 @@ S_cv_do_inline(pTHX_ const OP *o, const OP *cvop, CV *cv, bool meth)
         if (UNLIKELY(OP_TYPE_IS(o->op_next, OP_GVSV))) { /* $self->meth not,
                                                 as we don't know the run-time dispatch */
             DEBUG_k(deb("rpeep: skip inline $self->%s\n", HEK_KEY(CvNAME_HEK(cv))));
-            return (OP*)pushmarkop;
+            return pushmarkop;
         }
         if (OP_TYPE_IS(o->op_next, OP_CONST)) { /* pkg->meth yes, if pkg::meth exists */
-            /* my $self = const pv */
+            /* convert to push @_, const pv, keep pushmark */
+            /* pushmark const => pushmark gv rv2av const push:
+               7     <@> push[t2] vK/2 ->8
+               3        <0> pushmark s ->4
+               5        <1> rv2av[t1] lKRM/1 ->6
+               4           <$> gv(*_) s ->5
+               6        <$> const(PV "pkg") s ->7 */
+            /* remove bareword-ness of class name */
+            OP* pushop;
+            OP* constop = o->op_next;
+            constop->op_flags &= ~OPf_MOD;
+            constop->op_private &= ~(OPpCONST_BARE|OPpCONST_STRICT);
+            o->op_next = newUNOP(OP_RV2AV, 0, newGVOP(OP_GV, 0, PL_defgv));
+            o->op_next->op_sibling = o->op_next->op_next = constop;
+            pushop = newLISTOP(OP_PUSH, 0, pushmarkop, o->op_next);
+            pushop->op_next = constop->op_next;
+            constop->op_next = pushop;
         }
     }
     for (; o != cvop; o = o->op_next) {
@@ -9130,7 +9146,9 @@ S_cv_do_inline(pTHX_ const OP *o, const OP *cvop, CV *cv, bool meth)
 	    return NULL;
 	}
     }
-    return (OP*)pushmarkop;
+    o = pushmarkop;
+    /*op_free(pushmarkop);*/
+    return o;
 }
 
 static void
@@ -11188,8 +11206,11 @@ Perl_ck_rvconst(pTHX_ OP *o)
 	    kid->op_private = 0;
 	    /* FAKE globs in the symbol table cause weird bugs (#77810) */
 	    SvFAKE_off(gv);
+            DEBUG_kv(PerlIO_printf(Perl_debug_log, " => "));
+            DEBUG_kv(op_dump(o));
 	}
     } else {
+        /* keep non-constant rv's asis */
         DEBUG_k(Perl_deb(aTHX_ "ck_rvconst: %s %s\n", OP_NAME(o), OP_NAME(kid)));
         /*DEBUG_kv(op_dump(o));*/
     }
@@ -17593,7 +17614,7 @@ Perl_rpeep(pTHX_ OP *o)
 /* See http://blogs.perl.org/users/rurban/2011/06/how-perl-calls-subs-and-methods.html */
 #if 0
                                     OP* cop = o->op_next;
-                                    OP* ngv = cop->op_sibling = scalar(newGVOP(OP_GV, 0, gvf));
+                                    OP* ngv = cop->op_sibling = newGVOP(OP_GV, 0, gvf);
                                     cop->op_private &= ~(OPpCONST_BARE|OPpCONST_STRICT);
                                     ngv->op_next = o2;
                                     for (; cop->op_next != gvop; cop=cop->op_next) ;
