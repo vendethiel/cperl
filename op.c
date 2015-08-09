@@ -9096,25 +9096,26 @@ S_op_const_sv(pTHX_ const OP *o, CV *compcv, bool allow_lex)
  * with a OP_SIGNATURE it is easier. without need to populate @_.
  * if arg is call-by-value make a copy.
  * adjust or add targs,
- * with local need to add SAVETMPS/FREETMPS.
- * maybe keep ENTER/LEAVE
+ * with local need to add ENTER/LEAVE,
+ * skip ENTER/LEAVE if certain ops are absent
  *
  * $lhs = call(...); => $lhs = do {...inlined...};
  */
 
 static OP*
-S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv, bool meth)
+S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
 {
     OP *firstop = o;
     OP *list = NULL;
     OP *arg;
-
+    bool with_enter_leave = TRUE;
+#ifdef DEBUGGING
+    int i = 0, args = 0;
+#endif
     assert(o); /* the pushmark */
     assert(cv);
     assert(IS_TYPE(o, PUSHMARK));
     assert(IS_TYPE(cvop, ENTERSUB));
-    assert(!meth);
-    /* first translate the args to the temp vars */
 #if 0
     /* for now skip dynamic methods */
     if (meth) { /* push self */
@@ -9149,45 +9150,76 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv, bool meth)
         }
     }
 #endif
-    /* handle arity and args, check if OP_SIGNATURE in cv */
-    /* pushmark args gv entersub body ... NULL ...
-       => pushmark args push body ... */
+    /* handle optional args:
+          pushmark args gv entersub body leavesub NULL
+       => pushmark gv rv2av args push enter body leave */
     arg = o->op_next;
     if (arg->op_next != cvop) { /* has args */
         OP *defav;
-        /* @_ in pad or global */
+        /* @_ in pad or global. @_ is at PAD_SVl(0) in a sub */
         const PADOFFSET offset = pad_findmy_pvs("@_", 0);
         if (offset == NOT_IN_PAD || PAD_COMPNAME_FLAGS_isOUR(offset)) {
             if (!GvAV(PL_defgv)) gv_AVadd(PL_defgv);
-            defav = newAVREF(newGVOP(OP_GV, 0, PL_defgv));
+            o = newGVOP(OP_GV, OPf_WANT_SCALAR, PL_defgv);
+            defav = newUNOP(OP_RV2AV, OPf_MOD|OPf_REF|OPf_KIDS|OPf_WANT_LIST, o);
+            o->op_next = defav;
+            defav->op_next = defav->op_sibling = arg;
+            defav->op_targ = 0;
         }
         else {
             defav = newOP(OP_PADAV, 0);
             defav->op_targ = offset;
+            defav->op_next = arg;
         }
-        arg->op_flags &= ~OPf_MOD; /* because we push it */
-        o = arg->op_next;
-        list = newLISTOP(OP_LIST, 0, defav, arg);
-        for (; o->op_next->op_next != cvop; o = o->op_next) {
+        list = newLISTOP(OP_LIST, 0, defav, NULL);
+        o = arg;
+        for (; o->op_next && o->op_next->op_next != cvop; o = o->op_next) {
+            DEBUG_k(args++);
+            o->op_flags &= ~OPf_MOD; /* warn about it? convert to call-by-ref? */
             list = op_append_elem(OP_LIST, list, o);
         }
         arg = o->op_next; /* gv */
         o->op_next = o->_OP_SIBPARENT_FIELDNAME = NULL;
         list = op_convert_list(OP_PUSH, 0, list);
+        OpLAST(list) = o;
         op_free(firstop);
         firstop = OpFIRST(list);
+        if (IS_TYPE(defav, RV2AV)) {
+            firstop->op_next = OpFIRST(defav);
+        }
     }
-    /* splice body, skip gv + entersub */
-    firstop->op_next = CvSTART(cv);
-    for (; o->op_next; o = o->op_next) {
-        if (OP_TYPE_IS(o, OP_LEAVESUB))
-            op_null(o);
+    finalize_op(list);
+
+    /* splice body, skip and free the gv */
+    o = CvSTART(cv);
+    for (; o->op_next; o=o->op_next) {
+        DEBUG_k(i++);
+        /* TODO: check if we need enter/leave pairs */
+        if (OP_TYPE_IS(o->op_next, OP_LEAVESUB) && with_enter_leave) {
+            o = o->op_next;
+            OpTYPE_set(o, OP_LEAVE);
+            /* keep the LEAVESUB context op_flags: OPf_PARENS|OPf_KIDS|OPf_WANT_VOID */
+            o->op_private &= ~OPpARG1_MASK; /* keep OPpREFCOUNTED */
+            o->op_next = cvop->op_next;
+            break;
+        }
     }
-    o->op_next = cvop->op_next;
-    OpFIRST(arg->op_next) = 0; /* protect cv from being freed */
-    op_free(arg->op_next);
-    op_free(arg);
-    DEBUG_k(deb("rpeep: inlined sub\n"));
+    if (!o->op_next || !with_enter_leave ) { /* no LEAVE, so no ENTER also */
+        assert(0 && !"no LEAVESUB");
+        o->op_next = cvop->op_next; /* skip and free entersub */
+        op_free(arg->op_next);
+        list->op_next = CvSTART(cv);
+    } else {
+        OP *o = arg->op_next;
+        list->op_next = o;
+        OpFIRST(o) = 0; /* protect cv from being freed */
+        OpTYPE_set(o, OP_ENTER);
+        o->op_flags = o->op_private = 0;
+        o->op_next = CvSTART(cv);
+    }
+    op_free(arg); /* the gv */
+    DEBUG_kv(deb("rpeep: inlined sub. args: %d, body: %d, enter/leave: %d\n",
+                 args, i, with_enter_leave ));
     return firstop;
 }
 
@@ -17585,18 +17617,23 @@ Perl_rpeep(pTHX_ OP *o)
                 for (; o2 && i<8; o2 = o2->op_next, i++) {
                     OPCODE type = o2->op_type;
                     if (type == OP_GV /*|| type == OP_GVSV */) {
+#ifdef DEBUGGING
+                        int j = 0;
+#endif
                         gvop = o2; /* gvsv for variable method parts, left or right */
                         /* delete the null ops between op_gv and op_entersub
                            for easier arity checks */
                         for (; o2 && OP_TYPE_IS(o2->op_next, OP_NULL) && i<8; i++) {
                             if (OP_TYPE_IS(o2->op_next, OP_NULL)) {
                                 OP* tmp = o2->op_next->op_next;
+                                DEBUG_k(j++);
                                 op_free(o2->op_next);
                                 o2->op_next = tmp;
                             } else {
                                 o2 = o2->op_next;
                             }
                         }
+                        DEBUG_k(if(j)deb("rpeep: freed %d NULL ops between GV and ENTERSUB\n", j));
                     } else if (type == OP_METHOD_NAMED) {
                         /* method name only with pkg->m, not $obj->m */
                         /* TODO: we could speculate and cache an inlined variant for $obj,
@@ -17673,8 +17710,10 @@ Perl_rpeep(pTHX_ OP *o)
                         if (cv && CvINLINABLE(cv) && !meth) {
                             OP* tmp;
                             DEBUG_k(deb("rpeep: inline sub %s\n", cvname));
-                            if ((tmp = S_cv_do_inline(o, o2, cv, !!meth))) {
+                            if ((tmp = S_cv_do_inline(o, o2, cv))) {
                                 o = tmp;
+                                if (oldop)
+                                    oldop->op_next = o;
                             }
                         }
                     }
