@@ -3457,20 +3457,21 @@ S_finalize_op(pTHX_ OP* o)
 
         for (kid = OpFIRST(o); kid; kid = OpSIBLING(kid)) {
 #  ifdef PERL_OP_PARENT
-            if (!OpHAS_SIBLING(kid)) {
+            if (!OpHAS_SIBLING(kid) && ISNT_TYPE(o, NULL)) {
                 if (has_last)
                     assert(kid == OpLAST(o));
                 assert(kid->op_sibparent == o);
             }
 #  else
-            if (has_last && !OpHAS_SIBLING(kid))
+            if (has_last && !OpHAS_SIBLING(kid) && ISNT_TYPE(o, NULL))
                 assert(kid == OpLAST(o));
 #  endif
         }
 #endif
 
 	for (kid = OpFIRST(o); kid; kid = OpSIBLING(kid))
-	    finalize_op(kid);
+            if (ISNT_TYPE(kid, NULL))
+                finalize_op(kid);
     }
 }
 
@@ -9124,8 +9125,9 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     OP *list = NULL;
     OP *arg;
     bool with_enter_leave = TRUE;
+    int args = 0;
 #ifdef DEBUGGING
-    int i = 0, args = 0;
+    int i = 0;
 #endif
     assert(o); /* the pushmark */
     assert(cv);
@@ -9189,9 +9191,13 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         o = arg->op_next;
         list = newLISTOP(OP_LIST, 0, defav, o);
         for (; o->op_next && o->op_next->op_next != cvop; o = o->op_next) {
-            DEBUG_k(args++);
+            args++;
             o->op_flags &= ~OPf_MOD; /* warn about it? convert to call-by-ref? */
             o->op_sibling = o->op_next;
+            if (args > 8) {
+                DEBUG_k(deb("rpeep: skip inlining sub, too many args\n"));
+                return NULL;
+            }
         }
         arg = o->op_next; /* the gv */
         o->op_next = o->_OP_SIBPARENT_FIELDNAME = NULL; /* the last arg */
