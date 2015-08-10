@@ -2876,7 +2876,12 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
 {
     const OP *firstop = o;
     unsigned short i = 0;
+    PADLIST *padlist;
     PERL_ARGS_ASSERT_CV_CHECK_INLINE;
+
+    /* XXX we do not fixup targs yet */
+    if ((padlist = CvPADLIST(compcv)) && PadlistMAX(padlist) > 1)
+        return FALSE;
 
     for (; o; o = o->op_next) {
 	const OPCODE type = o->op_type;
