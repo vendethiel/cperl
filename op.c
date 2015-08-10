@@ -2892,13 +2892,13 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
 
         if (i > PERL_MAX_INLINE_OPS) return FALSE;
 	else if (type == OP_NEXTSTATE || type == OP_DBSTATE
-            || type == OP_NULL   || type == OP_LINESEQ
-            || type == OP_PUSHMARK)
+              || type == OP_NULL      || type == OP_LINESEQ
+              || type == OP_PUSHMARK)
             continue;
-	else if (type == OP_RETURN    || type == OP_GOTO
-            || type == OP_CALLER || type == OP_WARN
-            || type == OP_DIE    || type == OP_RESET
-            || type == OP_RUNCV  || type == OP_PADRANGE)
+	else if (type == OP_RETURN || type == OP_GOTO
+              || type == OP_CALLER || type == OP_WARN
+              || type == OP_DIE    || type == OP_RESET
+              || type == OP_RUNCV  || type == OP_PADRANGE)
 	    return FALSE;
         /* PERL_GLOBAL_STRUCT_INIT is only defined inside util.c:Perl_init_global_struct */
 #if defined(USE_CPERL) && (!defined(PERL_GLOBAL_STRUCT_INIT) && defined(Perl_pp_signature))
@@ -2907,6 +2907,7 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
 #endif
 	else if (type == OP_LEAVESUB)
 	    break;
+        /* skip on call-by-ref semantics: $_[n] */
         else if (type == OP_AELEMFAST) {
             if (strEQ(GvNAME(cGVOPo_gv), "_")) {
                 DEBUG_k(deb("check_inline: skip call-by-ref aelemfast($_[])\n"));
@@ -2934,7 +2935,10 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
                 }
             }
         }
-        /* recursive? test please */
+        /* TODO: maybe skip or fix passing @_ to another sub, i.e. warnings::enabled */
+        /* pushmark .. gv(_) rv2av .. entersub. allow my() = @_ */
+
+        /* recursive call */
 	else if (type == OP_GV && OP_TYPE_IS(o->op_next, OP_ENTERSUB)) {
             GV* gv = cGVOPo_gv;
             CV *cv = NULL;
@@ -9176,7 +9180,6 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     assert(OP_TYPE_IS(o, OP_PUSHMARK));
     assert(OP_TYPE_IS(cvop, OP_ENTERSUB));
 
-    /*return NULL;*/
     /* handle optional args:
           pushmark args* gv null* entersub body leavesub NULL
        => pushmark gv rv2av args* push enter body leave */
@@ -9262,16 +9265,22 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         assert(0 && !"no LEAVESUB");
         o->op_next = cvop->op_next; /* skip and free entersub */
         op_free(arg->op_next);
-        if (list)
+        if (list) {
+            assert(args);
             list->op_next = CvSTART(cv);
-        else
+        } else {
+            assert(!args);
             firstop->op_next = CvSTART(cv);
+        }
     } else {
-        OP *o = arg->op_next;
-        if (list)
+        OP *o = cvop; /* the entersub */
+        if (list) {
+            assert(args);
             list->op_next = o;
-        else
+        } else {
+            assert(!args);
             firstop->op_next = o;
+        }
         OpFIRST(o) = 0; /* protect cv from being freed */
         OpTYPE_set(o, OP_ENTER);
         cUNOPo->op_first = NULL;
@@ -17784,11 +17793,16 @@ Perl_rpeep(pTHX_ OP *o)
                         }
                         if (cv && CvINLINABLE(cv) && !meth) {
                             OP* tmp;
-                            DEBUG_k(deb("rpeep: inline sub %s::%s\n", pkg, cvname));
-                            if ((tmp = S_cv_do_inline(o, o2, cv))) {
-                                o = tmp;
-                                if (oldop)
-                                    oldop->op_next = o;
+                            if (cop_hints_fetch_pvs(PL_curcop, "inline", REFCOUNTED_HE_EXISTS)) {
+                                DEBUG_k(deb("rpeep: skip inline sub %s::%s, no inline\n",
+                                            pkg, cvname));
+                            } else {
+                                DEBUG_k(deb("rpeep: inline sub %s::%s\n", pkg, cvname));
+                                if ((tmp = S_cv_do_inline(o, o2, cv))) {
+                                    o = tmp;
+                                    if (oldop)
+                                        oldop->op_next = o;
+                                }
                             }
                         }
                     }
