@@ -9178,30 +9178,33 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             o = newGVOP(OP_GV, OPf_WANT_SCALAR, PL_defgv);
             defav = newUNOP(OP_RV2AV, OPf_MOD|OPf_REF|OPf_KIDS|OPf_WANT_LIST, o);
             o->op_next = defav;
-            defav->op_next = defav->op_sibling = arg;
+            defav->op_next = defav->op_sibling = arg->op_next;
             defav->op_targ = 0;
         }
         else {
             defav = newOP(OP_PADAV, 0);
             defav->op_targ = offset;
-            defav->op_next = arg;
+            defav->op_next = arg->op_next;
         }
-        list = newLISTOP(OP_LIST, 0, defav, NULL);
-        o = arg;
+        o = arg->op_next;
+        list = newLISTOP(OP_LIST, 0, defav, o);
         for (; o->op_next && o->op_next->op_next != cvop; o = o->op_next) {
             DEBUG_k(args++);
             o->op_flags &= ~OPf_MOD; /* warn about it? convert to call-by-ref? */
-            list = op_append_elem(OP_LIST, list, o);
+            o->op_sibling = o->op_next;
         }
-        arg = o->op_next; /* gv */
+        arg = o->op_next; /* the gv */
         o->op_next = o->_OP_SIBPARENT_FIELDNAME = NULL; /* the last arg */
-        list = op_convert_list(OP_PUSH, 0, list);
         OpLAST(list) = o;
+        list = op_convert_list(OP_PUSH, 0, list);
         op_free(firstop);
         firstop = OpFIRST(list);
+        firstop->op_sibling = defav;
         if (IS_TYPE(defav, RV2AV)) {
             firstop->op_next = OpFIRST(defav);
             cUNOPx(defav)->op_sibling = o;
+        } else {
+            firstop->op_next = defav;
         }
         finalize_op(list);
         o->op_next = list;
