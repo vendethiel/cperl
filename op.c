@@ -9166,7 +9166,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     OP *firstop = o;
     OP *list = NULL;
     OP *arg;
-    bool with_enter_leave = TRUE;
+    bool with_enter_leave = FALSE;
     int args = 0;
 #ifdef DEBUGGING
     int i = 0;
@@ -9183,7 +9183,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     arg = o->op_next;
 #ifndef PERL_FREE_NULLOPS
     /* ignore nulls between gv and entersub */
-    for (; arg->op_next && OP_TYPE_IS(arg, OP_NULL); arg = arg->op_next)
+    for (; arg->op_next && OP_TYPE_IS(arg->op_next, OP_NULL); arg = arg->op_next)
         ;
 #endif
     if (arg->op_next != cvop) { /* has args */
@@ -9210,7 +9210,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             /* ignore nulls between gv and entersub */
             if (OP_TYPE_IS(o, OP_GV)) {
                 for (; o->op_next && OP_TYPE_IS(o->op_next, OP_NULL); o=o->op_next);
-                if (o->op_next == cvop) break;
+                if (o->op_next == cvop) goto inline_no_args;
             }
 #endif
             args++;
@@ -9239,12 +9239,16 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         finalize_op(list);
         o->op_next = list;
     }
-
+ inline_no_args:
     /* splice body, skip and free the gv */
     o = CvSTART(cv);
     for (; o->op_next; o=o->op_next) {
         DEBUG_k(i++);
-        /* TODO: check if we need enter/leave pairs */
+        if (OP_TYPE_IS(o, OP_ENTERSUB)
+            || o->op_type >= OP_ENTER
+            || (o->op_type >= OP_CALLER && o->op_type <= OP_RESET)
+            || (o->op_type >= OP_SORT && o->op_type <= OP_FLOP))
+            with_enter_leave = TRUE;
         if (OP_TYPE_IS(o->op_next, OP_LEAVESUB) && with_enter_leave) {
             o = o->op_next;
             OpTYPE_set(o, OP_LEAVE);
@@ -9275,7 +9279,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         o->op_next = CvSTART(cv);
     }
     op_free(arg); /* the gv */
-    DEBUG_kv(deb("rpeep: inlined sub. args: %d, body: %d, enter/leave: %d\n",
+    DEBUG_kv(deb("rpeep: inlined sub. args: %d, body: %d, with enter/leave: %d\n",
                  args, i, with_enter_leave ));
     return firstop;
 }
@@ -17721,6 +17725,7 @@ Perl_rpeep(pTHX_ OP *o)
 #endif
 #ifdef DEBUGGING
                     char *cvname = NULL;
+                    char *pkg = (char*)"";
 #endif
                     CV* cv = NULL;
                     /* For methods only if the static &pkg->cv exists. A typed obj info
@@ -17729,6 +17734,7 @@ Perl_rpeep(pTHX_ OP *o)
                     if (gv) {
                         if (SvTYPE(gv) == SVt_PVGV && (cv = GvCV(gv))
                             && SvTYPE(cv) == SVt_PVCV) {
+                            DEBUG_k(pkg = HvNAME_get(GvSTASH(gv)));
                             DEBUG_k(cvname = GvNAME_get(gv));
                         } else if (SvROK(gv) && (cv = (CV*)SvRV((SV*)gv))
                                    && SvTYPE(cv) == SVt_PVCV) {
@@ -17757,6 +17763,7 @@ Perl_rpeep(pTHX_ OP *o)
                                 }
                                 else if (gvf && SvTYPE(gv) == SVt_PVGV && GvCV(gvf)) {
                                     cv = GvCV(gvf);
+                                    DEBUG_k(pkg = HvNAME_get(GvSTASH(gvf)));
                                     DEBUG_k(cvname = GvNAME_get(gvf));
                                 }
                                 if (cv) {
@@ -17769,14 +17776,15 @@ Perl_rpeep(pTHX_ OP *o)
                                     SvREFCNT_dec(cSVOPx_sv(gvop));
                                     ((SVOP*)gvop)->op_sv = (SV*)gvf;
                                     o2->op_flags |= OPf_STACKED;
-                                    DEBUG_k(deb("rpeep: convert static method call to sub %s\n", cvname));
+                                    DEBUG_k(deb("rpeep: convert static method call to sub %s::%s\n",
+                                                pkg, cvname));
                                     meth = FALSE;
                                 }
                             }
                         }
                         if (cv && CvINLINABLE(cv) && !meth) {
                             OP* tmp;
-                            DEBUG_k(deb("rpeep: inline sub %s\n", cvname));
+                            DEBUG_k(deb("rpeep: inline sub %s::%s\n", pkg, cvname));
                             if ((tmp = S_cv_do_inline(o, o2, cv))) {
                                 o = tmp;
                                 if (oldop)
