@@ -9204,6 +9204,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             cUNOPx(defav)->op_sibling = o;
         }
         finalize_op(list);
+        o->op_next = list;
     }
 
     /* splice body, skip and free the gv */
