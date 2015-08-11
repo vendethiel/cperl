@@ -9172,9 +9172,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     OP *arg;
     bool with_enter_leave = FALSE;
     int args = 0;
-#ifdef DEBUGGING
     int i = 0;
-#endif
     assert(o); /* the pushmark */
     assert(cv);
     assert(OP_TYPE_IS(o, OP_PUSHMARK));
@@ -9246,7 +9244,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     /* splice body, skip and free the gv */
     o = CvSTART(cv);
     for (; o->op_next; o=o->op_next) {
-        DEBUG_k(i++);
+        i++;
         if (OP_TYPE_IS(o, OP_ENTERSUB)
             || o->op_type >= OP_ENTER
             || (o->op_type >= OP_CALLER && o->op_type <= OP_RESET)
@@ -9259,6 +9257,11 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             o->op_private &= ~OPpARG1_MASK; /* keep OPpREFCOUNTED */
             o->op_next = cvop->op_next;
             break;
+        }
+        if (i > PERL_MAX_INLINE_OPS) {
+            CvINLINABLE_off(cv); /* do not try again */
+            DEBUG_k(deb("rpeep: skip inlining sub, too large body\n"));
+            return NULL;
         }
     }
     if (!o->op_next || !with_enter_leave ) { /* no LEAVE, so no ENTER also */
