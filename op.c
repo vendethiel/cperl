@@ -9258,10 +9258,10 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         if (OP_TYPE_IS(o->op_next, OP_LEAVESUB)) {
             if (with_enter_leave) {
                 o = o->op_next;
-                OpTYPE_set(o, OP_LEAVE); /* XXX but keep the SP! */
-                /* keep the LEAVESUB context op_flags:
-                   OPf_PARENS|OPf_KIDS|OPf_WANT_VOID */
+                OpTYPE_set(o, OP_LEAVE);
+                /* keep the LEAVESUB context op_flags: OPf_SPECIAL|OPf_WANT */
                 o->op_private &= ~OPpARG1_MASK; /* keep OPpREFCOUNTED */
+                o->op_private |= OPpLEAVE_SP;  /* keep SP */
             } else {
                 cUNOPx(o->op_next)->op_first = NULL;
                 o->op_next->op_flags &= OPf_KIDS; /* keep em */

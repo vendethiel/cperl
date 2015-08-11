@@ -404,6 +404,7 @@ $bits{last}{0} = $bf[0];
 $bits{lc}{0} = $bf[0];
 $bits{lcfirst}{0} = $bf[0];
 @{$bits{le}}{1,0} = ($bf[1], $bf[1]);
+$bits{leave}{5} = 'OPpLEAVE_SP';
 $bits{leaveeval}{0} = $bf[0];
 $bits{leavegiven}{0} = $bf[0];
 @{$bits{leaveloop}}{1,0} = ($bf[1], $bf[1]);
@@ -630,8 +631,13 @@ our %defines = (
     OPpHUSH_VMSISH           =>  32,
     OPpITER_DEF              =>   8,
     OPpITER_REVERSED         =>   2,
+<<<<<<< HEAD
     OPpLENGTH_MAYBE_TRUEBOOL  =>  32,
     OPpLENGTH_TRUEBOOL       =>  64,
+||||||| merged common ancestors
+=======
+    OPpLEAVE_SP              =>  32,
+>>>>>>> inline: add OPpLEAVE_SP flag to leave
     OPpLIST_GUESSED          =>  64,
     OPpLVALUE                => 128,
     OPpLVAL_DEFER            =>  64,
@@ -728,8 +734,13 @@ our %labels = (
     OPpHUSH_VMSISH           => 'HUSH',
     OPpITER_DEF              => 'DEF',
     OPpITER_REVERSED         => 'REVERSED',
+<<<<<<< HEAD
     OPpLENGTH_MAYBE_TRUEBOOL  => 'BOOL?',
     OPpLENGTH_TRUEBOOL       => 'BOOL',
+||||||| merged common ancestors
+=======
+    OPpLEAVE_SP              => 'SP',
+>>>>>>> inline: add OPpLEAVE_SP flag to leave
     OPpLIST_GUESSED          => 'GUESSED',
     OPpLVALUE                => 'LV',
     OPpLVAL_DEFER            => 'LVDEFER',
@@ -802,7 +813,12 @@ our %ops_using = (
     OPpHUSH_VMSISH           => [qw(dbstate nextstate)],
     OPpITER_DEF              => [qw(enteriter)],
     OPpITER_REVERSED         => [qw(enteriter iter)],
+<<<<<<< HEAD
     OPpLENGTH_MAYBE_TRUEBOOL  => [qw(length)],
+||||||| merged common ancestors
+=======
+    OPpLEAVE_SP              => [qw(leave)],
+>>>>>>> inline: add OPpLEAVE_SP flag to leave
     OPpLIST_GUESSED          => [qw(list)],
     OPpLVALUE                => [qw(leave leaveloop)],
     OPpLVAL_DEFER            => [qw(aelem helem multideref)],
