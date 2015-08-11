@@ -9182,7 +9182,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
 
     /* handle optional args:
           pushmark args* gv null* entersub body leavesub NULL
-       => pushmark gv rv2av args* push enter body leave */
+       => pushmark gv rv2av args* push enter? body leave? */
     arg = o->op_next;
 #ifndef PERL_FREE_NULLOPS
     /* ignore nulls between gv and entersub */
@@ -9262,9 +9262,9 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         }
     }
     if (!o->op_next || !with_enter_leave ) { /* no LEAVE, so no ENTER also */
-        assert(0 && !"no LEAVESUB");
-        o->op_next = cvop->op_next; /* skip and free entersub */
-        op_free(arg->op_next);
+        o->op_next = cvop->op_next;    /* skip and free entersub */
+        cUNOPx(cvop)->op_first = NULL; /* to protect the cv from being freed */
+        op_free(cvop);
         if (list) {
             assert(args);
             list->op_next = CvSTART(cv);
