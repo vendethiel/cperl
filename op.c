@@ -9248,6 +9248,9 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     for (; o->op_next; o=o->op_next) {
         i++;
         if (OP_TYPE_IS(o, OP_ENTERSUB)
+            || o->op_type == OP_DBSTATE
+            || o->op_type == OP_NEXTSTATE
+            || o->op_type == OP_UNSTACK
             || o->op_type >= OP_ENTER
             || (o->op_type >= OP_CALLER && o->op_type <= OP_RESET)
             || (o->op_type >= OP_SORT && o->op_type <= OP_FLOP))
@@ -9255,7 +9258,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         if (OP_TYPE_IS(o->op_next, OP_LEAVESUB)) {
             if (with_enter_leave) {
                 o = o->op_next;
-                OpTYPE_set(o, OP_LEAVE);
+                OpTYPE_set(o, OP_LEAVE); /* XXX but keep the SP! */
                 /* keep the LEAVESUB context op_flags:
                    OPf_PARENS|OPf_KIDS|OPf_WANT_VOID */
                 o->op_private &= ~OPpARG1_MASK; /* keep OPpREFCOUNTED */
