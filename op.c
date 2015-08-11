@@ -9274,7 +9274,15 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         }
     }
     if (!o->op_next || !with_enter_leave ) { /* no LEAVE, so no ENTER also */
-        o->op_next = cvop->op_next;    /* skip and free entersub */
+        /* XXX: add an nextstate to adjust the linenumber when coming back
+           But this would reset our stack, so we would need a ENTER/LEAVE also */
+        if (0 && OP_TYPE_ISNT(cvop->op_next, OP_NEXTSTATE)) {
+            o->op_next = newSTATEOP(0,NULL,NULL);
+            /* TODO: keep SP (cxstack[cxstack_ix].blk_oldsp) */
+            o->op_next->op_next = cvop->op_next;
+        } else {
+            o->op_next = cvop->op_next;    /* skip and free entersub */
+        }
         cvop->op_flags &= OPf_KIDS; /* keep em */
         cUNOPx(cvop)->op_first = NULL; /* to protect the cv from being freed */
         op_free(cvop);
@@ -9298,7 +9306,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         OpTYPE_set(o, OP_ENTER);
         cUNOPo->op_first = NULL;
         o->op_flags = o->op_private = 0;
-        o->op_next = CvSTART(cv);
+        o->op_next = o->op_sibling = CvSTART(cv);
     }
     arg->op_flags &= OPf_KIDS; /* keep em */
     op_free(arg); /* the gv */
