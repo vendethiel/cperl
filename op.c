@@ -9209,9 +9209,10 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         for (; o->op_next && o->op_next->op_next != cvop; o = OpSIBLING(o)) {
 #ifndef PERL_FREE_NULLOPS
             /* ignore nulls between gv and entersub */
-            if (OP_TYPE_IS(o, OP_GV)) {
+            if (!args && OP_TYPE_IS(o, OP_GV)) {
                 for (; o->op_next && OP_TYPE_IS(o->op_next, OP_NULL); o=o->op_next);
-                if (o->op_next == cvop) goto inline_no_args;
+                if (o->op_next == cvop)
+                    goto inline_no_args;
             }
 #endif
             args++;
