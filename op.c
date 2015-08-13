@@ -276,7 +276,7 @@ Returns the next non-NULL op, skipping all NULL ops in the chain.
 PERL_STATIC_INLINE OP*
 S_op_next_nn(OP* o) {
     PERL_ARGS_ASSERT_OP_NEXT_NN;
-    while(o->op_next && OP_TYPE_IS(o->op_next, OP_NULL))
+    while(o->op_next && OP_TYPE_IS_NN(o->op_next, OP_NULL))
         o = o->op_next;
     return o->op_next;
 }
@@ -9181,13 +9181,8 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     /* handle optional args:
           pushmark args* gv null* entersub body leavesub NULL
        => pushmark gv rv2av args* push enter? body leave? */
-    arg = o->op_next;
-#ifndef PERL_FREE_NULLOPS
-    /* ignore nulls between gv and entersub */
-    for (; arg->op_next && OP_TYPE_IS(arg->op_next, OP_NULL); arg = arg->op_next)
-        ;
-#endif
-    if (arg->op_next != cvop) { /* has args */
+    arg = S_op_next_nn(o);
+    if (S_op_next_nn(arg) != cvop) { /* has args */
         OP *defav;
         /* @_ in pad or global. @_ is at PAD_SVl(0) in a sub */
         const PADOFFSET offset = pad_findmy_pvs("@_", 0);
@@ -9196,37 +9191,30 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             o = newGVOP(OP_GV, OPf_WANT_SCALAR, PL_defgv);
             defav = newUNOP(OP_RV2AV, OPf_MOD|OPf_REF|OPf_KIDS|OPf_WANT_LIST, o);
             o->op_next = defav;
-            defav->op_next = defav->op_sibling = arg->op_next;
+            defav->op_next = defav->op_sibling = arg;
             defav->op_targ = 0;
         }
         else {
             defav = newOP(OP_PADAV, 0);
             defav->op_targ = offset;
-            defav->op_next = arg->op_next;
+            defav->op_next = arg;
         }
-        o = arg->op_next;
-        /* walk the args in siblings/kids order */
-        for (; o->op_next && o->op_next->op_next != cvop; o = OpSIBLING(o)) {
-#ifndef PERL_FREE_NULLOPS
-            /* ignore nulls between gv and entersub */
-            if (!args && OP_TYPE_IS(o, OP_GV)) {
-                for (; o->op_next && OP_TYPE_IS(o->op_next, OP_NULL); o=o->op_next);
-                if (o->op_next == cvop)
-                    goto inline_no_args;
-            }
-#endif
+        /* walk the args in siblings/kids order until the GV-NULL*-ENTERSUB*/
+        list = newLISTOP(OP_LIST, 0, defav, arg);
+        for (o = arg; o->op_next; o = S_op_next_nn(o)) {
             args++;
-            o->op_flags &= ~OPf_MOD; /* warn about it? convert to call-by-ref? */
-            o->op_sibling = o->op_next;
             if (args > 8) {
                 CvINLINABLE_off(cv); /* do not try again */
                 DEBUG_k(deb("rpeep: skip inlining sub, too many args\n"));
                 return NULL;
             }
+            o->op_flags &= ~OPf_MOD; /* warn about it? convert to call-by-ref? */
+            if (S_op_next_nn(o->op_next) == cvop)
+                break;
+            o->op_sibling = o->op_next;
         }
         arg = o->op_next; /* the gv */
         o->op_next = o->op_sibling = NULL; /* the last arg */
-        list = newLISTOP(OP_LIST, 0, defav, NULL);
         OpLAST(list) = o; /* XXX this list might be too long still re siblings */
         list = op_convert_list(OP_PUSH, 0, list);
         firstop->op_flags &= ~OPf_KIDS; /* keep em */
@@ -17159,8 +17147,6 @@ S_check_for_bool_cxt(pTHX_ OP* o, U8 bool_flag, U8 maybe_flag)
     }
 }
 
-
-/* returns the next non-null op */
 
 /* mechanism for deferring recursion in rpeep() */
 
