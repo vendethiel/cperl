@@ -9180,7 +9180,9 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
 
     /* handle optional args:
           pushmark args* gv null* entersub body leavesub NULL
-       => pushmark gv rv2av args* push enter? body leave? */
+       => pushmark gv rv2av args* push enter? body leave?
+       TODO: dependent on the body the push args list can be optimized away.
+    */
     arg = S_op_next_nn(o);
     if (S_op_next_nn(arg) != cvop) { /* has args */
         OP *defav;
@@ -17702,6 +17704,7 @@ Perl_rpeep(pTHX_ OP *o)
                 OP* o2 = o;
                 OP* gvop = NULL;
                 /* scan from pushmark to the next entersub call, 4 args with $->$ */
+                while (o->op_next && OP_TYPE_IS(o->op_next, OP_PUSHMARK)) o2 = o = o->op_next;
                 for (; o2 && i<8; o2 = o2->op_next, i++) {
                     OPCODE type = o2->op_type;
                     if (type == OP_GV /*|| type == OP_GVSV */) {
