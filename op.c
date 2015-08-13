@@ -9229,7 +9229,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         list = newLISTOP(OP_LIST, 0, defav, NULL);
         OpLAST(list) = o; /* XXX this list might be too long still re siblings */
         list = op_convert_list(OP_PUSH, 0, list);
-        firstop->op_flags &= OPf_KIDS; /* keep em */
+        firstop->op_flags &= ~OPf_KIDS; /* keep em */
         op_free(firstop);
         firstop = OpFIRST(list);
         firstop->op_sibling = defav;
@@ -9243,17 +9243,23 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         o->op_next = list;
     }
  inline_no_args:
-    /* splice body, skip and free the gv */
+    /* splice and fixup body, handle nextstate, skip and free the gv. */
     o = CvSTART(cv);
     for (; o->op_next; o=o->op_next) {
+        const OPCODE type = o->op_type;
         i++;
-        if (OP_TYPE_IS(o, OP_ENTERSUB)
-            || o->op_type == OP_DBSTATE
-            || o->op_type == OP_NEXTSTATE
-            || o->op_type == OP_UNSTACK
-            || o->op_type >= OP_ENTER
-            || (o->op_type >= OP_CALLER && o->op_type <= OP_RESET)
-            || (o->op_type >= OP_SORT && o->op_type <= OP_FLOP))
+        if (i > PERL_MAX_INLINE_OPS) {
+            CvINLINABLE_off(cv); /* do not try again */
+            DEBUG_k(deb("rpeep: skip inlining sub, too large body\n"));
+            return NULL;
+        }
+        /* ctl ops need a block */
+        if (type == OP_ENTERSUB
+            || type == OP_ENTERXSSUB
+            || type == OP_UNSTACK
+            || type >= OP_ENTER
+            || (type >= OP_CALLER && type <= OP_RESET)
+            || (type >= OP_SORT && type <= OP_FLOP))
             with_enter_leave = TRUE;
         if (OP_TYPE_IS(o->op_next, OP_LEAVESUB)) {
             if (with_enter_leave) {
@@ -9264,30 +9270,30 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 o->op_private |= OPpLEAVE_SP;  /* keep SP */
             } else {
                 cUNOPx(o->op_next)->op_first = NULL;
-                o->op_next->op_flags &= OPf_KIDS; /* keep em */
+                o->op_next->op_flags &= ~OPf_KIDS; /* keep em */
                 op_free(o->op_next);
             }
             o->op_next = cvop->op_next;
             break;
         }
-        if (i > PERL_MAX_INLINE_OPS) {
-            CvINLINABLE_off(cv); /* do not try again */
-            DEBUG_k(deb("rpeep: skip inlining sub, too large body\n"));
-            return NULL;
+        /* nextstate resets SP to the level of upper block. 
+           Since the inlines call maybe a rhs, the SP is different. So we 
+           need to save and restore it seperately. */
+        if (type == OP_NEXTSTATE) {
+            static bool firststate = TRUE;
+            if (firststate) {
+                /* record the SP in curcop, ignore blk.oldsp */
+                OpTYPE_set(o, OP_SETSTATE);
+                firststate = FALSE;
+            } else {
+                /* reset SP from curcop, not blk.oldsp */
+                OpTYPE_set(o, OP_KEEPSTATE);
+            }
         }
     }
     if (!o->op_next || !with_enter_leave ) { /* no LEAVE, so no ENTER also */
-        /* XXX: add an nextstate to adjust the linenumber when coming back
-           But this would reset our stack, so we would need a ENTER/LEAVE also */
-        if (0 && OP_TYPE_ISNT(cvop->op_next, OP_NEXTSTATE)) {
-            o->op_next = newSTATEOP(0,NULL,NULL);
-            /* TODO: keep SP (cxstack[cxstack_ix].blk_oldsp) */
-            o->op_next->op_next = cvop->op_next;
-        } else {
-            o->op_next = cvop->op_next;    /* skip and free entersub */
-        }
-        cvop->op_flags &= OPf_KIDS; /* keep em */
-        cUNOPx(cvop)->op_first = NULL; /* to protect the cv from being freed */
+        o->op_next = cvop->op_next;     /* skip and free entersub */
+        cvop->op_flags &= ~OPf_KIDS;    /* keep em */
         op_free(cvop);
         if (list) {
             assert(args);
@@ -9296,8 +9302,8 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             assert(!args);
             firstop->op_next = CvSTART(cv);
         }
-    } else {
-        OP *o = cvop; /* the entersub */
+    } else if (with_enter_leave) {
+        OP *o = cvop; /* convert the entersub to enter */
         if (list) {
             assert(args);
             list->op_next = o;
@@ -9305,13 +9311,14 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             assert(!args);
             firstop->op_next = o;
         }
-        OpFIRST(o) = 0; /* protect cv from being freed */
         OpTYPE_set(o, OP_ENTER);
         cUNOPo->op_first = NULL;
         o->op_flags = o->op_private = 0;
         o->op_next = o->op_sibling = CvSTART(cv);
+    } else { /* no leavesub or cvop->op_next == NULL */
+        assert(0 && !"no leavesub or cvop->op_next == NULL");
     }
-    arg->op_flags &= OPf_KIDS; /* keep em */
+    arg->op_flags &= ~OPf_KIDS; /* keep em */
     op_free(arg); /* the gv */
     DEBUG_kv(deb("rpeep: inlined sub. args: %d, body: %d, with enter/leave: %d\n",
                  args, i, with_enter_leave ));

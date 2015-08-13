@@ -286,7 +286,7 @@ use strict;
 # of PL_hints, although only bits 6 & 7 are officially used for that
 # purpose (the rest ought to be masked off). Bit 5 is set separately
 
-for (qw(nextstate dbstate)) {
+for (qw(nextstate dbstate setstate keepstate)) {
     addbits($_,
         5 => qw(OPpHUSH_VMSISH          HUSH),
     );

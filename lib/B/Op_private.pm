@@ -131,7 +131,7 @@ $bits{$_}{2} = 'OPpFT_STACKED' for qw(ftatime ftbinary ftblk ftchr ftctime ftdir
 $bits{$_}{3} = 'OPpFT_STACKING' for qw(ftatime ftbinary ftblk ftchr ftctime ftdir fteexec fteowned fteread ftewrite ftfile ftis ftlink ftmtime ftpipe ftrexec ftrowned ftrread ftrwrite ftsgid ftsize ftsock ftsuid ftsvtx fttext fttty ftzero);
 $bits{$_}{1} = 'OPpGREP_LEX' for qw(grepstart grepwhile mapstart mapwhile);
 $bits{$_}{1} = 'OPpHINT_STRICT_REFS' for qw(entersub enterxssub multideref rv2av rv2cv rv2gv rv2hv rv2sv);
-$bits{$_}{5} = 'OPpHUSH_VMSISH' for qw(dbstate nextstate);
+$bits{$_}{5} = 'OPpHUSH_VMSISH' for qw(dbstate keepstate nextstate setstate);
 $bits{$_}{1} = 'OPpITER_REVERSED' for qw(enteriter iter);
 $bits{$_}{7} = 'OPpLVALUE' for qw(leave leaveloop);
 $bits{$_}{6} = 'OPpLVAL_DEFER' for qw(aelem helem multideref);
@@ -810,7 +810,7 @@ our %ops_using = (
     OPpFT_AFTER_t            => [qw(ftatime ftbinary ftblk ftchr ftctime ftdir fteexec fteowned fteread ftewrite ftfile ftis ftlink ftmtime ftpipe ftrexec ftrowned ftrread ftrwrite ftsgid ftsize ftsock ftsuid ftsvtx fttext fttty ftzero)],
     OPpGREP_LEX              => [qw(grepstart grepwhile mapstart mapwhile)],
     OPpHINT_STRICT_REFS      => [qw(entersub enterxssub multideref rv2av rv2cv rv2gv rv2hv rv2sv)],
-    OPpHUSH_VMSISH           => [qw(dbstate nextstate)],
+    OPpHUSH_VMSISH           => [qw(dbstate keepstate nextstate setstate)],
     OPpITER_DEF              => [qw(enteriter)],
     OPpITER_REVERSED         => [qw(enteriter iter)],
 <<<<<<< HEAD
