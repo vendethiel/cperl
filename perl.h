@@ -2770,8 +2770,8 @@ typedef AV PAD;
 typedef struct padnamelist PADNAMELIST;
 typedef struct padname PADNAME;
 
-/* enable PERL_OP_PARENT by default */
-#if !defined(PERL_OP_PARENT) && !defined(PERL_NO_OP_PARENT)
+/* enable PERL_OP_PARENT by default. not with inlined cperl yet */
+#if !defined(PERL_OP_PARENT) && !defined(PERL_NO_OP_PARENT) && !defined(USE_CPERL)
 #  define PERL_OP_PARENT
 #endif
 

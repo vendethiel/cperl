@@ -2907,6 +2907,7 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
 #endif
 	else if (type == OP_LEAVESUB)
 	    break;
+#if 0
         /* skip on call-by-ref semantics: $_[n] */
         else if (type == OP_AELEMFAST) {
             if (strEQ(GvNAME(cGVOPo_gv), "_")) {
@@ -2935,6 +2936,7 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
                 }
             }
         }
+#endif
         /* TODO: maybe skip or fix passing @_ to another sub, i.e. warnings::enabled */
         /* pushmark .. gv(_) rv2av .. entersub. allow my() = @_ */
 
@@ -9151,6 +9153,22 @@ S_op_const_sv(pTHX_ const OP *o, CV *compcv, bool allow_lex)
     return sv;
 }
 
+static OP*
+S_op_clone(OP* o) {
+    const OPCODE type = o->op_type;
+    switch (type) {
+    case OP_GV:
+    case OP_GVSV:
+        cSVOPo->op_sv = sv_mortalcopy(cSVOPo->op_sv); break;
+    case OP_PADSV: /* allow new pad or convert to gv? */
+        assert(0 && !"op_clone pad");
+        break;
+    default:
+        assert(0 && !"op_clone");
+    }
+    return o;
+}
+
 /* cv_do_inline needs to translate the args,
  * splice inlined ENTERSUB into the current body.
  * METHOD should not arrive here, neither $obj->method.
@@ -9170,9 +9188,11 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     OP *firstop = o;
     OP *list = NULL;
     OP *arg;
-    bool with_enter_leave = FALSE;
     int args = 0;
-    int i = 0;
+    int i, j;
+    OP* inargs[6];
+    bool with_enter_leave = FALSE;
+    bool optim_args = TRUE;
     assert(o); /* the pushmark */
     assert(cv);
     assert(OP_TYPE_IS(o, OP_PUSHMARK));
@@ -9202,20 +9222,22 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             defav->op_next = arg;
         }
         /* walk the args in siblings/kids order until the GV-NULL*-ENTERSUB*/
-        list = newLISTOP(OP_LIST, 0, defav, arg);
         for (o = arg; o->op_next; o = S_op_next_nn(o)) {
-            args++;
-            if (args > 8) {
+            if (args > 5) {
                 CvINLINABLE_off(cv); /* do not try again */
                 DEBUG_k(deb("rpeep: skip inlining sub, too many args\n"));
                 return NULL;
             }
-            o->op_flags &= ~OPf_MOD; /* warn about it? convert to call-by-ref? */
+            inargs[args] = o;
+            args++;
+            /*o->op_flags &= ~OPf_MOD;*/ /* warn about it? convert to call-by-ref? */
             if (S_op_next_nn(o->op_next) == cvop)
                 break;
             o->op_sibling = o->op_next;
         }
-        arg = o->op_next; /* the gv */
+        /* TODO if args == 1 or 2 try to optimize it directly into the cv */
+        list = newLISTOP(OP_LIST, 0, defav, arg);
+        op_free(o->op_next);  /* the gv */
         o->op_sibling = NULL; /* the last arg */
         OpLAST(list) = o; /* XXX this list might be too long still re siblings */
         list = op_convert_list(OP_PUSH, 0, list);
@@ -9235,12 +9257,13 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     }
     /* splice and fixup body, handle nextstate, skip and free the gv. */
     o = CvSTART(cv);
-    for (; o->op_next; o=o->op_next) {
+    for (i=0,j=0; o->op_next; o=o->op_next) {
+        OP *prev;
         const OPCODE type = o->op_type;
         i++;
         if (i > PERL_MAX_INLINE_OPS) {
             CvINLINABLE_off(cv); /* do not try again */
-            DEBUG_k(deb("rpeep: skip inlining sub, too large body\n"));
+            DEBUG_k(deb("inline: skip inlining sub, too large body\n"));
             return NULL;
         }
         /* ctl ops need a block */
@@ -9280,21 +9303,115 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 OpTYPE_set(o, OP_KEEPSTATE);
             }
         }
+
+        /* Try to splice in the args directly */
+        if (o->op_next && args > 0 && args <= 6) {
+            const OPCODE type = o->op_next->op_type;
+            prev = o;
+            o = o->op_next;
+
+            if (!optim_args) {
+                DEBUG_kv(deb("rpeep: skip optim_args\n"));
+            }
+            else if (type == OP_GV && strEQ(GvNAME(cGVOPo_gv), "_")) {
+                /* see PERL_FAKE_SIGNATURE assign */
+                /* my () = @_ */
+                optim_args = FALSE;
+                DEBUG_kv(deb("inline: TODO copy @_\n"));
+            }
+            else if (o->op_flags & OPf_SPECIAL && type == OP_SHIFT) {
+                assert(j < args);
+                DEBUG_k(deb("inline: optimize shift => %d arg by %s\n", j,
+                             (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
+                             ? "ref":"value"));
+                /* do not copy a literal (const) arg */
+                o = (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
+                    ? S_op_clone(inargs[j++]) : inargs[j++];
+                o->op_next = prev->op_next->op_next;
+                prev->op_next = o;
+            }
+            else if (o->op_flags & OPf_SPECIAL && type == OP_POP) {
+                int ix = args - j;
+                assert(j < args);
+                DEBUG_k(deb("inline: optimize pop => %d arg by %s\n", ix,
+                             (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
+                             ? "ref":"value"));
+                o = (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
+                    ? S_op_clone(inargs[ix]) : inargs[ix];
+                o->op_next = prev->op_next->op_next;
+                prev->op_next = o;
+                args--;
+            }
+            else if (type == OP_AELEMFAST && strEQ(GvNAME(cGVOPo_gv), "_")) {
+                int ix = (U8)o->op_private;
+                assert(ix >= 0 && ix < args);
+                DEBUG_k(deb("inline: optimize $_[%d] arg by ref\n", ix));
+                o = inargs[ix];
+                o->op_next = prev->op_next->op_next;
+                prev->op_next = o;
+            }
+            else if (type == OP_MULTIDEREF) {
+                UNOP_AUX_item *items = cUNOP_AUXo->op_aux;
+                UV actions = items->uv;
+                items++;
+                if ((actions & MDEREF_ACTION_MASK) == MDEREF_AV_gvav_aelem) {
+                    GV *gv = (GV*)UNOP_AUX_item_sv(items);
+                    if (GvNAMELEN(gv) == 1 && *GvNAME(gv) == '_') {
+                        /* oops, which index? */
+                        int ix = 0;
+                        optim_args = FALSE;
+                        assert(ix >= 0 && ix < args);
+                        DEBUG_kv(deb("rpeep: *_[??] arg by ref\n"));
+                        if (0) {
+                            o = inargs[ix];
+                            o->op_next = prev->op_next->op_next;
+                            prev->op_next = o;
+                        }
+                    }
+                }
+                else if ((actions & MDEREF_ACTION_MASK) == MDEREF_AV_padav_aelem) {
+                    PADOFFSET off = items->pad_offset;
+                    PADLIST * const padlist = CvPADLIST(cv);
+                    PADNAME * pad = padnamelist_fetch(PadlistNAMES(padlist), off);
+                    if (PadnameLEN(pad) == 1 && *PadnamePV(pad) == '_') {
+                        /* oops, which index? */
+                        int ix = 0;
+                        optim_args = FALSE;
+                        assert(ix >= 0 && ix < args);
+                        DEBUG_kv(deb("rpeep: $_[??] arg by ref\n"));
+                        if (0) {
+                            o = inargs[ix];
+                            o->op_next = prev->op_next->op_next;
+                            prev->op_next = o;
+                        }
+                    }
+                }
+            }
+            o = prev;
+        } else {
+            optim_args = FALSE;
+        }
     }
-    if (!o->op_next || !with_enter_leave ) { /* no LEAVE, so no ENTER also */
+    if (!o->op_next || !with_enter_leave ) { /* LEAVESUB without ENTER */
         o->op_next = cvop->op_next;     /* skip and free entersub */
         cvop->op_flags &= ~OPf_KIDS;    /* keep em */
         op_free(cvop);
-        if (list) {
-            assert(args);
-            list->op_next = CvSTART(cv);
-        } else {
+        if (optim_args) { /* omit the push list */
+            /* leak the list. we would need to free the push and pushmark,
+               and all copied sv's */
+            firstop = CvSTART(cv);
+        } else if (!list) {
             assert(!args);
             firstop->op_next = CvSTART(cv);
+        } else {
+            assert(args);
+            list->op_next = CvSTART(cv);
         }
     } else if (with_enter_leave) {
-        OP *o = cvop; /* convert the entersub to enter */
-        if (list) {
+        OP *o = cvop;     /* convert the entersub to enter */
+        if (optim_args) { /* omit the push list */
+            firstop = o;
+        } else if (list) {
             assert(args);
             list->op_next = o;
         } else {
@@ -9308,8 +9425,6 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     } else { /* no leavesub or cvop->op_next == NULL */
         assert(0 && !"no leavesub or cvop->op_next == NULL");
     }
-    arg->op_flags &= ~OPf_KIDS; /* keep em */
-    op_free(arg); /* the gv */
     DEBUG_kv(deb("rpeep: inlined sub. args: %d, body: %d, with enter/leave: %d\n",
                  args, i, with_enter_leave ));
     return firstop;
@@ -17704,7 +17819,10 @@ Perl_rpeep(pTHX_ OP *o)
                 OP* o2 = o;
                 OP* gvop = NULL;
                 /* scan from pushmark to the next entersub call, 4 args with $->$ */
-                while (o->op_next && OP_TYPE_IS(o->op_next, OP_PUSHMARK)) o2 = o = o->op_next;
+                while (o->op_next && OP_TYPE_IS(o->op_next, OP_PUSHMARK)) {
+                    oldop = o;
+                    o = o->op_next;
+                }
                 for (; o2 && i<8; o2 = o2->op_next, i++) {
                     OPCODE type = o2->op_type;
                     if (type == OP_GV /*|| type == OP_GVSV */) {
