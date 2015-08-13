@@ -9258,6 +9258,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     /* splice and fixup body, handle nextstate, skip and free the gv. */
     o = CvSTART(cv);
     for (i=0,j=0; o->op_next; o=o->op_next) {
+        bool seen_logop = FALSE;
         OP *prev;
         const OPCODE type = o->op_type;
         i++;
@@ -9303,6 +9304,8 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 OpTYPE_set(o, OP_KEEPSTATE);
             }
         }
+        if (OP_IS_LOGOP(o->op_type))
+            seen_logop = TRUE;
 
         /* Try to splice in the args directly */
         if (o->op_next && args > 0 && args <= 6) {
@@ -9320,7 +9323,13 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 DEBUG_kv(deb("inline: TODO copy @_\n"));
             }
             else if (o->op_flags & OPf_SPECIAL && type == OP_SHIFT) {
-                assert(j < args);
+                if (seen_logop || j >= args) {
+                    optim_args = FALSE;
+                    o = prev;
+                    DEBUG_k(deb("inline: skip optim_args, logop seen before %d of %d arg\n",
+                                j, args));
+                    continue;
+                }
                 DEBUG_k(deb("inline: optimize shift => %d arg by %s\n", j,
                              (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
                              ? "ref":"value"));
@@ -9332,7 +9341,13 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             }
             else if (o->op_flags & OPf_SPECIAL && type == OP_POP) {
                 int ix = args - j;
-                assert(j < args);
+                if (seen_logop || j >= args) {
+                    optim_args = FALSE;
+                    o = prev;
+                    DEBUG_k(deb("inline: skip optim_args, logop seen before %d of %d arg\n",
+                                ix, args));
+                    continue;
+                }
                 DEBUG_k(deb("inline: optimize pop => %d arg by %s\n", ix,
                              (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
                              ? "ref":"value"));
@@ -9344,6 +9359,12 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             }
             else if (type == OP_AELEMFAST && strEQ(GvNAME(cGVOPo_gv), "_")) {
                 int ix = (U8)o->op_private;
+                if (ix < 0 || ix >= args) {
+                    optim_args = FALSE;
+                    o = prev;
+                    DEBUG_k(deb("inline: skip optim_args, invalid %d of %d arg\n", ix, args));
+                    continue;
+                }
                 assert(ix >= 0 && ix < args);
                 DEBUG_k(deb("inline: optimize $_[%d] arg by ref\n", ix));
                 o = inargs[ix];
