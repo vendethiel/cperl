@@ -360,9 +360,9 @@ EXTCONST char* const PL_op_name[] = {
 	"reset",	/* 204: symbol reset */
 	"lineseq",	/* 205: line sequence */
 	"nextstate",	/* 206: next statement */
-	"dbstate",	/* 207: debug next statement */
-	"setstate",	/* 208: first inlined statement */
-	"keepstate",	/* 209: inlined statement */
+	"setstate",	/* 207: first inlined statement */
+	"keepstate",	/* 208: inlined statement */
+	"dbstate",	/* 209: debug next statement */
 	"unstack",	/* 210: iteration finalizer */
 	"enter",	/* 211: block entry */
 	"leave",	/* 212: block exit */
@@ -779,9 +779,9 @@ EXTCONST char* const PL_op_desc[] = {
 	"symbol reset",	/* 204: reset */
 	"line sequence",	/* 205: lineseq */
 	"next statement",	/* 206: nextstate */
-	"debug next statement",	/* 207: dbstate */
-	"first inlined statement",	/* 208: setstate */
-	"inlined statement",	/* 209: keepstate */
+	"first inlined statement",	/* 207: setstate */
+	"inlined statement",	/* 208: keepstate */
+	"debug next statement",	/* 209: dbstate */
 	"iteration finalizer",	/* 210: unstack */
 	"block entry",	/* 211: enter */
 	"block exit",	/* 212: leave */
@@ -1197,9 +1197,9 @@ PL_op_type_str[] = {
 	"",	/* 204: reset */
 	"():Void",	/* 205: lineseq */
 	"():Void",	/* 206: nextstate */
-	"():Void",	/* 207: dbstate */
-	"():Void",	/* 208: setstate */
-	"():Void",	/* 209: keepstate */
+	"():Void",	/* 207: setstate */
+	"():Void",	/* 208: keepstate */
+	"():Void",	/* 209: dbstate */
 	"():Void",	/* 210: unstack */
 	"",	/* 211: enter */
 	"",	/* 212: leave */
@@ -1622,9 +1622,9 @@ EXTCONST U32 PL_op_type[] = {
 	0xffffff00,	/* 204: reset "" */
 	0xffffffff,	/* 205: lineseq "():Void" */
 	0xffffffff,	/* 206: nextstate "():Void" */
-	0xffffffff,	/* 207: dbstate "():Void" */
-	0xffffffff,	/* 208: setstate "():Void" */
-	0xffffffff,	/* 209: keepstate "():Void" */
+	0xffffffff,	/* 207: setstate "():Void" */
+	0xffffffff,	/* 208: keepstate "():Void" */
+	0xffffffff,	/* 209: dbstate "():Void" */
 	0xffffffff,	/* 210: unstack "():Void" */
 	0xffffff00,	/* 211: enter "" */
 	0xffffff00,	/* 212: leave "" */
@@ -2048,9 +2048,9 @@ EXTCONST signed char PL_op_type_variants[][8] = {
 	/* 204 reset            */ {0},	/*  */
 	/* 205 lineseq          */ {0},	/*  */
 	/* 206 nextstate        */ {0},	/*  */
-	/* 207 dbstate          */ {0},	/*  */
-	/* 208 setstate         */ {0},	/*  */
-	/* 209 keepstate        */ {0},	/*  */
+	/* 207 setstate         */ {0},	/*  */
+	/* 208 keepstate        */ {0},	/*  */
+	/* 209 dbstate          */ {0},	/*  */
 	/* 210 unstack          */ {0},	/*  */
 	/* 211 enter            */ {0},	/*  */
 	/* 212 leave            */ {0},	/*  */
@@ -2503,9 +2503,9 @@ EXT Perl_ppaddr_t PL_ppaddr[] /* or perlvars.h */
 	Perl_pp_reset,
 	Perl_pp_lineseq,	/* implemented by Perl_pp_null */
 	Perl_pp_nextstate,
-	Perl_pp_dbstate,
 	Perl_pp_setstate,
 	Perl_pp_keepstate,
+	Perl_pp_dbstate,
 	Perl_pp_unstack,
 	Perl_pp_enter,
 	Perl_pp_leave,
@@ -2932,9 +2932,9 @@ EXT Perl_check_t PL_check[] /* or perlvars.h */
 	Perl_ck_fun,		/* reset */
 	Perl_ck_null,		/* lineseq */
 	Perl_ck_null,		/* nextstate */
-	Perl_ck_null,		/* dbstate */
 	Perl_ck_null,		/* setstate */
 	Perl_ck_null,		/* keepstate */
+	Perl_ck_null,		/* dbstate */
 	Perl_ck_null,		/* unstack */
 	Perl_ck_null,		/* enter */
 	Perl_ck_null,		/* leave */
@@ -3355,9 +3355,9 @@ EXTCONST U32 PL_opargs[] = {
 	0x00026c04,	/* reset */
 	0x00001100,	/* lineseq */
 	0x00002804,	/* nextstate */
-	0x00002804,	/* dbstate */
 	0x00002804,	/* setstate */
 	0x00002804,	/* keepstate */
+	0x00002804,	/* dbstate */
 	0x00000004,	/* unstack */
 	0x00000000,	/* enter */
 	0x00001000,	/* leave */
@@ -4036,10 +4036,14 @@ EXTCONST I16  PL_op_private_bitdef_ix[] = {
      154, /* dbstate */
 =======
      154, /* nextstate */
-     154, /* dbstate */
      154, /* setstate */
      154, /* keepstate */
+<<<<<<< HEAD
 >>>>>>> inline: add 2 stateops
+||||||| merged common ancestors
+=======
+     154, /* dbstate */
+>>>>>>> inline: almost done
       -1, /* unstack */
       -1, /* enter */
      162, /* leave */
@@ -4477,7 +4481,7 @@ EXTCONST U16  PL_op_private_bitdefs[] = {
     0x3638, 0x0003, /* leavesub, leavesublv, leavewrite, leaveeval */
     0x1aa4, 0x0003, /* signature */
     0x00bc, 0x018f, /* caller */
-    0x23d5, /* nextstate, dbstate, setstate, keepstate */
+    0x23d5, /* nextstate, setstate, keepstate, dbstate */
     0x2c5c, 0x3638, 0x3d35, /* leave */
     0x2dbc, 0x32d8, 0x0f6c, 0x3945, /* enteriter */
     0x3945, /* iter */
@@ -4709,9 +4713,9 @@ EXTCONST U8 PL_op_private_valid[] = {
     /* RESET      */ (OPpARG4_MASK),
     /* LINESEQ    */ (0),
     /* NEXTSTATE  */ (OPpHUSH_VMSISH),
-    /* DBSTATE    */ (OPpHUSH_VMSISH),
     /* SETSTATE   */ (OPpHUSH_VMSISH),
     /* KEEPSTATE  */ (OPpHUSH_VMSISH),
+    /* DBSTATE    */ (OPpHUSH_VMSISH),
     /* UNSTACK    */ (0),
     /* ENTER      */ (0),
     /* LEAVE      */ (OPpLEAVE_SP|OPpREFCOUNTED|OPpLVALUE),

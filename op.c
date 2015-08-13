@@ -9214,9 +9214,10 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             o->op_sibling = o->op_next;
         }
         arg = o->op_next; /* the gv */
-        o->op_next = o->op_sibling = NULL; /* the last arg */
+        o->op_sibling = NULL; /* the last arg */
         OpLAST(list) = o; /* XXX this list might be too long still re siblings */
         list = op_convert_list(OP_PUSH, 0, list);
+        o->op_next = list;
         firstop->op_flags &= ~OPf_KIDS; /* keep em */
         op_free(firstop);
         firstop = OpFIRST(list);
@@ -9230,7 +9231,6 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         finalize_op(list);
         o->op_next = list;
     }
- inline_no_args:
     /* splice and fixup body, handle nextstate, skip and free the gv. */
     o = CvSTART(cv);
     for (; o->op_next; o=o->op_next) {

@@ -1211,10 +1211,12 @@ S_do_op_dump_bar(pTHX_ I32 level, UV bar, PerlIO *file, const OP *o)
 #endif
 	break;
     case OP_NULL:
-	if (o->op_targ != OP_NEXTSTATE && o->op_targ != OP_DBSTATE)
+	if (o->op_targ < OP_NEXTSTATE || o->op_targ > OP_DBSTATE)
 	    break;
 	/* FALLTHROUGH */
     case OP_NEXTSTATE:
+    case OP_SETSTATE:
+    case OP_KEEPSTATE:
     case OP_DBSTATE:
 	if (CopLINE(cCOPo))
 	    S_opdump_indent(aTHX_ o, level, bar, file, "LINE = %" UVuf "\n",
