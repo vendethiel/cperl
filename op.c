@@ -5387,9 +5387,10 @@ S_fold_constants(pTHX_ OP *const o)
     OP *old_next;
     SV * const oldwarnhook = PL_warnhook;
     SV * const olddiehook  = PL_diehook;
+    COP *oldcop;
     int ret = 0;
-    VOL I32 type = o->op_type;
     I32 old_cxix;
+    VOL I32 type = o->op_type;
     U8 oldwarn = PL_dowarn;
     bool is_stringify;
     dJMPENV;
@@ -5493,9 +5494,12 @@ S_fold_constants(pTHX_ OP *const o)
     create_eval_scope(NULL, G_FAKINGEVAL);
 
     /* Verify that we don't need to save it:  */
-    assert(PL_curcop == &PL_compiling);
-    StructCopy(&PL_compiling, &not_compiling, COP);
-    PL_curcop = &not_compiling;
+    if (PL_curcop == &PL_compiling) {
+        StructCopy(&PL_compiling, &not_compiling, COP);
+        PL_curcop = &not_compiling;
+    } else {
+        oldcop = PL_curcop;
+    }
     /* The above ensures that we run with all the correct hints of the
        currently compiling COP, but that IN_PERL_RUNTIME is true. */
     assert(IN_PERL_RUNTIME);
@@ -5539,7 +5543,11 @@ S_fold_constants(pTHX_ OP *const o)
     PL_dowarn   = oldwarn;
     PL_warnhook = oldwarnhook;
     PL_diehook  = olddiehook;
-    PL_curcop = &PL_compiling;
+    if (PL_curcop == &not_compiling) {
+        PL_curcop = &PL_compiling;
+    } else {
+        PL_curcop = oldcop;
+    }
 
     /* if we croaked, depending on how we croaked the eval scope
      * may or may not have already been popped */
@@ -9154,7 +9162,7 @@ S_op_const_sv(pTHX_ const OP *o, CV *compcv, bool allow_lex)
 }
 
 /* op_fixup: update OP *links in a tree.
- * keeps a hash of old => &new ptrs.
+ * keeps a hash of old => new ptrs.
  * when old is found, update *new with the found *value. which might technically be NULL.
  * but since we initialized all ptrs with NULL, don't bother.
  *
@@ -9255,7 +9263,7 @@ S_op_fixup(OP *old, OP *newop, U32 init) {
 /*
 =for apidoc op_clone_oplist
 
-Clones just the op list/tree, not the data.
+Clones just the op list/tree/graph, not the data.
 This is the opposite to C<cv_clone>, which clones that pads, but not the ops.
 If C<last> == NULL, clones the whole sub (i.e. tree), otherwise until C<last>.
 
@@ -9267,6 +9275,9 @@ in the 2nd pass all pointers inside the graph are known, and
 fixup the missing other pointers.
 
 C<init> = TRUE will re-initialize the op cache.
+
+Note, this function is algorithmicly similar to Cheney's Copying
+Garbage Collector.
 
 =cut
 */
@@ -9329,10 +9340,13 @@ Perl_op_clone_oplist(pTHX_ OP* o, OP* last, bool init) {
             FIXUP(UNOP,first);
             break;
         case OA_BINOP:
-        case OA_LISTOP:
             if (!pass2) {
-                clone = newBINOP(type, o->op_flags + (o->op_private << 8),
-                                 cBINOPo->op_first, cBINOPo->op_last);
+                /* clone = newBINOP(type, o->op_flags + (o->op_private << 8),
+                                 cBINOPo->op_first, cBINOPo->op_last);*/
+                NewOpSz(1102,clone,sizeof(LISTOP));
+                OpTYPE_set(clone, type);
+                COPYF(OP,flags);
+                COPYF(OP,private);
                 S_op_fixup(o, clone, 0);
                 COPY_BASE;
             }
@@ -9340,10 +9354,29 @@ Perl_op_clone_oplist(pTHX_ OP* o, OP* last, bool init) {
             FIXUP(BINOP,first);
             FIXUP(BINOP,last);
             break;
+        case OA_LISTOP:
+            if (!pass2) {
+                /* clone = newLISTOP(type, o->op_flags + (o->op_private << 8),
+                                     cBINOPo->op_first, cBINOPo->op_last);*/
+                NewOpSz(1102,clone,sizeof(LISTOP));
+                OpTYPE_set(clone, type);
+                COPYF(OP,flags);
+                COPYF(OP,private);
+                S_op_fixup(o, clone, 0);
+                COPY_BASE;
+            }
+            FIXUP_SIBPARENT;
+            FIXUP(LISTOP,first);
+            FIXUP(LISTOP,last);
+            break;
         case OA_LOGOP:
             if (!pass2) {
-                clone = newLOGOP(type, o->op_flags + (o->op_private << 8),
-                                 cLOGOPo->op_first, cLOGOPo->op_other);
+                /* clone = newLOGOP(type, o->op_flags + (o->op_private << 8),
+                                    cLOGOPo->op_first, cLOGOPo->op_other);*/
+                NewOpSz(1102,clone,sizeof(LOGOP));
+                OpTYPE_set(clone, type);
+                COPYF(OP,flags);
+                COPYF(OP,private);
                 S_op_fixup(o, clone, 0);
                 COPY_BASE;
             }
