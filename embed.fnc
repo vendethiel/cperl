@@ -3269,6 +3269,7 @@ ApM	|void	|leave_adjust_stacks	|NN SV **from_sp |NN SV **to_sp \
 AMp	|void	|set_version   |NN const char *name  |STRLEN nlen \
                                |NN const char *strval|STRLEN plen \
                                |NV nvval
+AMRp	|OP*	|op_clone_oplist|NN OP* o  |NULLOK OP* last|bool init
 
 #ifndef PERL_NO_INLINE_FUNCTIONS
 AiM	|PERL_CONTEXT *	|cx_pushblock|U8 type|U8 gimme|NN SV** sp|I32 saveix
