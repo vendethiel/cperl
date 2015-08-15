@@ -9168,7 +9168,8 @@ S_op_const_sv(pTHX_ const OP *o, CV *compcv, bool allow_lex)
  *
  * init=0: 1st pass: store-only, ptr should not exist.
  * init=1: 1st pass: re-init the cache.
- * init=2: 1st pass: store and check. visit all next. *newop might be already cloned, i.e. we may free *newop
+ * init=2: 1st pass: store and check. visit all next. *newop might be already cloned,
+ *                   i.e. we may free *newop
  * init=3: 2nd pass: visit all other
  * init=4: 2nd pass: ignore newop arg, just return found clone.
  *
@@ -9276,251 +9277,128 @@ fixup the missing other pointers.
 
 C<init> = TRUE will re-initialize the op cache.
 
-Note, this function is algorithmicly similar to Cheney's Copying
-Garbage Collector.
+Yes, this function is algorithmicly similar to a Garbage Collector.
+
+Note that when op_clone_oplist is called outside of the first compiler
+passes, the ops will not be slabbed. The third rpeep pass is already
+to late.
 
 =cut
 */
 
 OP*
 Perl_op_clone_oplist(pTHX_ OP* o, OP* last, bool init) {
-    OP *clone, *prev = NULL;
-    OP* first = NULL;
+    OP *clone = NULL, *prev = NULL, * first = NULL;
     int pass2;
+
     S_op_fixup(NULL, NULL, init?1:0); /* init the fixup cache */
 
-#define COPYF(oa,field)   ((oa*)clone)->op_##field = ((oa*)o)->op_##field
-#define FIXUP(oa,field)   if (((oa*)o)->op_##field) S_op_fixup(((oa*)o)->op_##field, ((oa*)clone)->op_##field, pass2+2)
-#define COPY_BASE clone->op_targ = o->op_targ;                          \
-    COPYF(OP,savefree);                                                 \
-    COPYF(OP,folded);                                                   \
-    COPYF(OP,moresib);                                                  \
-    clone->op_opt = 1;                                                  \
-    clone->op_static = 0;
-#define FIXUP_SIBPARENT \
-    if (pass2) clone = S_op_fixup(o, NULL, 4);                          \
-    if (o->_OP_SIBPARENT_FIELDNAME) {                                   \
-        S_op_fixup(o->_OP_SIBPARENT_FIELDNAME, clone->_OP_SIBPARENT_FIELDNAME, pass2+2);  \
-    }
+#define FIXUP(oa,field)                                                 \
+    if (((oa*)o)->op_##field)                                           \
+        S_op_fixup(((oa*)o)->op_##field, ((oa*)clone)->op_##field, pass2+2)
 
-    /* first pass: fixup and record all the next pointers,
-       second pass: the rest */
+#define OPCLONE(oa)                             \
+    if (!pass2) {                               \
+        NewOpSz(1102,clone,sizeof(oa));         \
+        if (!clone->op_slabbed) {               \
+            memcpy(clone, o, sizeof(oa));       \
+            clone->op_slabbed = 0;              \
+        } else {                                \
+            memcpy(clone, o, sizeof(oa));       \
+        }                                       \
+        S_op_fixup(o, clone, 0);                \
+    } else {                                    \
+        clone = S_op_fixup(o, NULL, 4);         \
+    }                                           \
+    if (o->_OP_SIBPARENT_FIELDNAME)             \
+        S_op_fixup(o->_OP_SIBPARENT_FIELDNAME, clone->_OP_SIBPARENT_FIELDNAME, pass2+2)
+
+    /* first pass:  fixup and record all the next pointers, in exec order.
+       second pass: the rest first, sibling, last, ... all pointers are now known */
     for (pass2=0; pass2<2; pass2++) {
-      for (; o || o != last; o = o->op_next) {
-        const OPCODE type = o->op_type;
-        switch (OpCLASS(type)) {
-        case OA_BASEOP:
+        for (; o || o != last; o = o->op_next) {
+            switch (OpCLASS(o->op_type)) {
+            case OA_BASEOP:
+                OPCLONE(OP);
+                break;
+            case OA_UNOP:
+            case OA_BASEOP_OR_UNOP:
+            case OA_FILESTATOP:
+            case OA_LOOPEXOP:
+                OPCLONE(UNOP);
+                FIXUP(UNOP,first);
+                break;
+            case OA_UNOP_AUX:
+                OPCLONE(UNOP_AUX);
+                FIXUP(UNOP,first);
+                break;
+            case OA_BINOP:
+                OPCLONE(BINOP);
+                FIXUP(BINOP,first);
+                FIXUP(BINOP,last);
+                break;
+            case OA_LISTOP:
+                OPCLONE(LISTOP);
+                FIXUP(LISTOP,first);
+                FIXUP(LISTOP,last);
+                break;
+            case OA_LOGOP:
+                OPCLONE(LOGOP);
+                FIXUP(LOGOP,first);
+                FIXUP(LOGOP,other);
+                break;
+            case OA_PMOP:
+                OPCLONE(PMOP);
+                FIXUP(PMOP,first);
+                FIXUP(PMOP,last);
+                break;
+            case OA_METHOP: /* 14 */
+                OPCLONE(METHOP);
+                if (o->op_private & 1) {
+                    FIXUP(METHOP,u.op_first);   /* dynamic */
+                }
+                break;
+            case OA_SVOP:
+                OPCLONE(SVOP);
+                break;
+            case OA_PADOP:
+                OPCLONE(PADOP);
+                break;
+            case OA_PVOP_OR_SVOP:
+                OPCLONE(PVOP);
+                break;
+            case OA_LOOP:
+                OPCLONE(LOOP);
+                FIXUP(LOOP,first);
+                FIXUP(LOOP,last);
+                FIXUP(LOOP,redoop);
+                FIXUP(LOOP,nextop);
+                FIXUP(LOOP,lastop);
+                break;
+            case OA_COP:
+                OPCLONE(COP);
+                break;
+                
+            default:
+                assert(0 && !"op_clone_oplist: missing OA_CLASS case");
+            }
             if (!pass2) {
-                clone = newOP(type, o->op_flags + (o->op_private << 8));
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
+                if (prev)
+                    prev->op_next = clone;
+                else
+                    first = clone;
+                prev = clone;
             }
-            FIXUP_SIBPARENT;
-            break;
-        case OA_UNOP:
-        case OA_BASEOP_OR_UNOP:
-        case OA_FILESTATOP:
-        case OA_LOOPEXOP:
-            if (!pass2) {
-                clone = newUNOP(type, o->op_flags + (o->op_private << 8), cUNOPo->op_first);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            FIXUP(UNOP,first);
-            break;
-        case OA_UNOP_AUX:
-            if (!pass2) {
-                clone = newUNOP_AUX(type, o->op_flags + (o->op_private << 8),
-                                    cUNOPo->op_first, cUNOP_AUXo->op_aux);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            FIXUP(UNOP,first);
-            break;
-        case OA_BINOP:
-            if (!pass2) {
-                /* clone = newBINOP(type, o->op_flags + (o->op_private << 8),
-                                 cBINOPo->op_first, cBINOPo->op_last);*/
-                NewOpSz(1102,clone,sizeof(LISTOP));
-                OpTYPE_set(clone, type);
-                COPYF(OP,flags);
-                COPYF(OP,private);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            FIXUP(BINOP,first);
-            FIXUP(BINOP,last);
-            break;
-        case OA_LISTOP:
-            if (!pass2) {
-                /* clone = newLISTOP(type, o->op_flags + (o->op_private << 8),
-                                     cBINOPo->op_first, cBINOPo->op_last);*/
-                NewOpSz(1102,clone,sizeof(LISTOP));
-                OpTYPE_set(clone, type);
-                COPYF(OP,flags);
-                COPYF(OP,private);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            FIXUP(LISTOP,first);
-            FIXUP(LISTOP,last);
-            break;
-        case OA_LOGOP:
-            if (!pass2) {
-                /* clone = newLOGOP(type, o->op_flags + (o->op_private << 8),
-                                    cLOGOPo->op_first, cLOGOPo->op_other);*/
-                NewOpSz(1102,clone,sizeof(LOGOP));
-                OpTYPE_set(clone, type);
-                COPYF(OP,flags);
-                COPYF(OP,private);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            FIXUP(LOGOP,first);
-            FIXUP(LOGOP,other);
-            break;
-        case OA_PMOP:
-            if (!pass2) {
-                clone = newPMOP(type, o->op_flags + (o->op_private << 8));
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-                /* TODO: memcpy */
-                COPYF(PMOP,pmreplrootu.op_pmreplroot);    /* can be copied, different optree */
-                COPYF(PMOP,pmstashstartu.op_pmreplstart); /* can be copied, different optree */
-#ifdef USE_ITHREADS
-                COPYF(PMOP,pmoffset);
-                COPYF(PMOP,pmreplrootu.op_pmtargetoff);
-                COPYF(PMOP,pmstashstartu.op_pmstashoff);
-#else
-                COPYF(PMOP,pmregexp);
-                COPYF(PMOP,pmreplrootu.op_pmtargetgv);
-                COPYF(PMOP,pmstashstartu.op_pmstash);
-#endif
-                COPYF(PMOP,pmflags);
-                COPYF(PMOP,code_list);
-            }
-            FIXUP_SIBPARENT;
-            FIXUP(PMOP,first);
-            FIXUP(PMOP,last);
-            break;
-        case OA_METHOP: /* 14 */
-            if (!pass2) {
-                clone = newMETHOP(type, o->op_flags + (o->op_private << 8),
-                                  cUNOPo->op_first);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-                if (!(o->op_private & 1))
-                    COPYF(METHOP,u.op_meth_sv); /* static */
-#ifdef USE_ITHREADS
-                COPYF(METHOP,rclass_targ);
-#else
-                COPYF(METHOP,rclass_sv);
-#endif
-            }
-            if (o->op_private & 1) {
-                FIXUP(METHOP,u.op_first);   /* dynamic */
-            }
-            break;
-        case OA_SVOP:
-            if (!pass2) {
-                clone = newSVOP(type, o->op_flags + (o->op_private << 8), cSVOPo->op_sv);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            break;
-        case OA_PADOP:
-            if (!pass2) {
-                /*clone = newPADOP(type, o->op_flags + (o->op_private << 8), PADl_SV(op->padix));*/
-                NewOpSz(1102,clone,sizeof(PADOP));
-                OpTYPE_set(clone, type);
-                COPYF(OP,flags);
-                COPYF(OP,private);
-                COPYF(PADOP,padix);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            break;
-        case OA_PVOP_OR_SVOP:
-            if (!pass2) {
-                clone = newPVOP(type, o->op_flags | (o->op_private?SVf_UTF8:0), cPVOPo->op_pv);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            break;
-        case OA_LOOP:
-            if (!pass2) {
-                NewOpSz(1102,clone,sizeof(LOOP));
-                OpTYPE_set(clone, type);
-                COPYF(OP,flags);
-                COPYF(OP,private);
-                COPYF(LOOP,first);
-                COPYF(LOOP,last);
-                COPYF(LOOP,redoop);
-                COPYF(LOOP,nextop);
-                COPYF(LOOP,lastop);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-            }
-            FIXUP_SIBPARENT;
-            FIXUP(LOOP,first);
-            FIXUP(LOOP,last);
-            FIXUP(LOOP,redoop);
-            FIXUP(LOOP,nextop);
-            FIXUP(LOOP,lastop);
-            break;
-        case OA_COP:
-            if (!pass2) {
-                NewOpSz(1102,clone,sizeof(COP));
-                OpTYPE_set(clone, type);
-                COPYF(OP,flags);
-                COPYF(OP,private);
-                S_op_fixup(o, clone, 0);
-                COPY_BASE;
-#define COPYCOPF(field)      ((COP*)clone)->cop_##field = ((COP*)o)->cop_##field
-                COPYCOPF(line);
-#ifdef USE_ITHREADS
-                COPYCOPF(stashoff);
-                COPYCOPF(file);
-#else
-                COPYCOPF(stash);
-                COPYCOPF(filegv);
-#endif
-                COPYCOPF(hints);
-                COPYCOPF(seq);
-                COPYCOPF(warnings);
-                COPYCOPF(hints_hash);
-#undef COPYCOPF
-            }
-            FIXUP_SIBPARENT;
-            break;
-
-        default:
-            assert(0 && !"op_clone_oplist: missing OA_CLASS case");
         }
-        if (!pass2) {
-            if (prev)
-                prev->op_next = clone;
-            else
-                first = clone;
-            prev = clone;
-        }
-      }
     }
-#undef COPYF
+#undef OPCLONE
 #undef FIXUP
-#undef FIXUP_SIBPARENT
     return first;
 }
 
-/* clones the underlying data, not the op */
+/* clones the underlying data, not the op.
+ * TODO: finish
+ */
 
 static OP*
 S_op_clone_sv(OP* o) {
@@ -9530,10 +9408,10 @@ S_op_clone_sv(OP* o) {
     case OP_GVSV:
         cSVOPo->op_sv = sv_mortalcopy(cSVOPo->op_sv); break;
     case OP_PADSV: /* allow new pad or convert to gv? */
-        assert(0 && !"op_clone pad");
+        assert(0 && !"op_clone_sv pad");
         break;
     default:
-        assert(0 && !"op_clone");
+        assert(0 && !"op_clone_sv");
     }
     return o;
 }
@@ -9635,7 +9513,11 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         const OPCODE type = o->op_type;
         i++;
         if (i > PERL_MAX_INLINE_OPS) {
-            CvINLINABLE_off(cv); /* do not try again */
+            OP* tmp;
+            CvINLINABLE_off(cv);      /* do not try again */
+            for (tmp=o; tmp; o=tmp) { /* free the clones */
+                tmp = o->op_next; op_free(o);
+            }
             DEBUG_k(deb("inline: skip inlining sub, too large body\n"));
             return NULL;
         }
@@ -9647,21 +9529,6 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             || (type >= OP_CALLER && type <= OP_RESET)
             || (type >= OP_SORT && type <= OP_FLOP))
             with_enter_leave = TRUE;
-        if (OP_TYPE_IS(o->op_next, OP_LEAVESUB)) {
-            if (with_enter_leave) {
-                o = o->op_next;
-                OpTYPE_set(o, OP_LEAVE);
-                /* keep the LEAVESUB context op_flags: OPf_SPECIAL|OPf_WANT */
-                o->op_private &= ~OPpARG1_MASK; /* keep OPpREFCOUNTED */
-                o->op_private |= OPpLEAVE_SP;  /* keep SP */
-            } else {
-                cUNOPx(o->op_next)->op_first = NULL;
-                o->op_next->op_flags &= ~OPf_KIDS; /* keep em */
-                op_free(o->op_next);
-            }
-            o->op_next = cvop->op_next;
-            break;
-        }
         /* nextstate resets SP to the level of upper block. 
            Since the inlines call maybe a rhs, the SP is different. So we 
            need to save and restore it seperately. */
@@ -9678,6 +9545,27 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         }
         if (OP_IS_LOGOP(o->op_type))
             seen_logop = TRUE;
+        if (OP_TYPE_IS(o->op_next, OP_LEAVESUB)) {
+            if (with_enter_leave) {
+                o = o->op_next;
+                OpTYPE_set(o, OP_LEAVE);
+                /* keep the LEAVESUB context op_flags: OPf_SPECIAL|OPf_WANT */
+                o->op_private &= ~OPpARG1_MASK; /* keep OPpREFCOUNTED */
+                o->op_private |= OPpLEAVE_SP;  /* keep SP */
+            } else {
+                cUNOPx(o->op_next)->op_first = NULL;
+                o->op_next->op_flags &= ~OPf_KIDS; /* keep em */
+                op_free(o->op_next);
+            }
+            o->op_next = cvop->op_next;
+            break;
+        }
+
+        /* TODO: Maybe cache this processed inlined variant in CvINLINE_CACHE(cv),
+         * because such a cv is most likely inlined in multiple places.
+         * But then we also need to store the following array of arg fixups.
+         * And this is dependent of the number of caller args.
+         */
 
         /* Try to splice in the args directly */
         if (o->op_next && args > 0 && args <= 6) {

@@ -22,7 +22,7 @@ print x3(2) != 0  ? "not ":"", "ok ",$i++,"\n";
 print x4 != 1  ? "not ":"", "ok ",$i++,"\n";
 
 {
-  #no inline;
+  no inline;
 
   print &x1 != 1 ? "not ":"", "ok ",$i++,"\n";
   print x1 != 1  ? "not ":"", "ok ",$i++,"\n";
@@ -37,4 +37,3 @@ print x4 != 1  ? "not ":"", "ok ",$i++,"\n";
   print x3(2) != 0  ? "not ":"", "ok ",$i++,"\n";
   print x4 != 1  ? "not ":"", "ok ",$i++,"\n";
 }
-
