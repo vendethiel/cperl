@@ -3822,12 +3822,12 @@ Perl_op_lvalue_flags(pTHX_ OP *o, I32 type, U32 flags)
 	    goto nomod;
 	else {
 	    const I32 mods = PL_modcount;
+            IV iv;
 	    modkids(OpFIRST(o), type);
 	    if (type != OP_AASSIGN)
 		goto nomod;
 	    kid = OpLAST(o);
-	    if (IS_CONST_OP(kid) && SvIOK(kSVOP_sv)) {
-		const IV iv = SvIV(kSVOP_sv);
+	    if (IS_CONST_OP(kid) && (iv = S_const_iv(kid)) && iv != IV_MAX) {
 		if (PL_modcount != RETURN_UNLIMITED_NUMBER)
 		    PL_modcount =
 			mods + (PL_modcount - mods) * (iv < 0 ? 0 : iv);
@@ -15173,7 +15173,7 @@ Perl_ck_length(pTHX_ OP *o)
 }
 
 /*
-=for apidoc dMPpRx	|bool	|is_native_string |const char* s|STRLEN len
+=for apidoc dMPpRx|bool|is_native_string|const char* s|STRLEN len
 
 Checks if the string contains no \0, and is not UTF-8
 and thus is suitable to be stored as native C<:str> type.
@@ -17372,8 +17372,10 @@ S_op_downgrade_native(pTHX_ OP* o, bool with_box) {
     default:
         if (NUM_OP_TYPE_VARIANTS(type)) {
             OPCODE v = OP_TYPE_DOWNVARIANT(type, 1);
-            if (v)
+            if (v) {
                 OpTYPE_set(o, v);
+                op_std_init(o);
+            }
         }
     }
     if (o->op_type != type) {
@@ -18147,7 +18149,7 @@ Perl_rpeep(pTHX_ OP *o)
                  && IS_TYPE(kid->op_next, REPEAT)
                  && kid->op_next->op_private & OPpREPEAT_DOLIST
                  && OpWANT_LIST(kid->op_next)
-                 && SvIOK(kSVOP_sv) && SvIVX(kSVOP_sv) == 0
+                 && S_const_iv((OP*)kid) == 0
                  && oldop)
                 {
                     o = kid->op_next; /* repeat */
