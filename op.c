@@ -18120,6 +18120,7 @@ Perl_rpeep(pTHX_ OP *o)
         case OP_PUSHMARK:
             seen_pushmark = TRUE;
 
+            /*DEBUG_kv(deb("rpeep seen pushmark %s\n", OP_NAME(o->op_next)));*/
             /* Given
                  5 repeat/DOLIST
                  3   ex-list
