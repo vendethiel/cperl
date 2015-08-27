@@ -5051,6 +5051,7 @@ esac
 # If using gcc or clang, we can get better values for libpth, incpth
 # and usrinc directly from the compiler.
 # Note that ccname for clang is also gcc.
+# Note we need to collapse any/../w paths, resolve symlinks and avoid duplicates
 case "$ccname" in
     gcc)
 	$echo 'extern int foo;' > try.c
@@ -5060,7 +5061,7 @@ case "$ccname" in
 	    incpth="$incpth $*"
 	    incpth="`$echo $incpth|$sed 's/^ //'`"
 	    for i in $*; do
-		j="`$echo $i|$sed 's,/include$,/lib,'`"
+		j="`$echo $i|$sed 's,/include$,/lib,;s,\(.*\)/\.\.\(/.*\),\2,;'`"
 		if $test -d $j; then
 		    libpth="$libpth $j"
 		fi
@@ -5070,7 +5071,8 @@ case "$ccname" in
 		if $test -d $xxx; then
 		    case " $libpth " in
 		    *" $xxx "*) ;;
-		    *) libpth="$libpth $xxx";;
+		    *) xxx="`echo $xxx|$sed 's,\(.*\)/\.\.\(/.*\),\2,;'`"
+                       $test -d $xxx && libpth="$libpth $xxx";;
 		    esac
 		fi
 	    done
@@ -5132,15 +5134,19 @@ case "$libpth" in
 esac
 
 : Now check and see which directories actually exist, avoiding duplicates
+: Also resolve symlinks and bla/../paths
 for xxx in $dlist
 do
     if $test -d $xxx; then
-		case " $libpth " in
-		*" $xxx "*) ;;
-		*) libpth="$libpth $xxx";;
-		esac
+	case " $libpth " in
+	    *" $xxx "*) ;;
+	    *) res="`realpath $xxx`"
+               if [ -n $res ]; then libpth="$libpth $res"
+               else libpth="$libpth $xxx"; fi ;;
+	esac
     fi
 done
+libpth="`echo $libpth|$awk '!a[$0]++'`"
 $cat <<'EOM'
 
 Some systems have incompatible or broken versions of libraries.  Among
