@@ -1025,6 +1025,11 @@ C<sib> is non-null. For a higher-level interface, see C<L</op_sibling_splice>>.
 #define OpLAST(o)    cBINOPx(o)->op_last
 #define OpOTHER(o)   cLOGOPx(o)->op_other
 
+#define ASSERT_PTR_ALIGN(ptr) \
+    assert(!(((long)(ptr) & 0xf) % PTRSIZE))
+/* stdc11: #define ASSERT_PTR_ALIGN(ptr) \
+  assert(!(((long)(ptr) & 0xf) % alignof(OP*)))*/
+
 #ifdef PERL_OP_PARENT
 #  define OpHAS_SIBLING(o)	(cBOOL((o)->op_moresib))
 #  define OpSIBLING(o)		(0 + (o)->op_moresib ? (o)->op_sibparent : NULL)
@@ -1036,11 +1041,13 @@ C<sib> is non-null. For a higher-level interface, see C<L</op_sibling_splice>>.
 #else
 #  define OpHAS_SIBLING(o)	(cBOOL((o)->op_sibling))
 #  define OpSIBLING(o)		(0 + (o)->op_sibling)
-#  define OpMORESIB_set(o, sib) ((o)->op_moresib = 1, (o)->op_sibling = (sib))
+#  define OpMORESIB_set(o, sib) ((o)->op_moresib = 1, (o)->op_sibling = (sib)); \
+    ASSERT_PTR_ALIGN(sib)
 #  define OpLASTSIB_set(o, parent) \
        ((o)->op_moresib = 0, (o)->op_sibling = NULL)
 #  define OpMAYBESIB_set(o, sib, parent) \
-       ((o)->op_moresib = cBOOL(sib), (o)->op_sibling = (sib))
+    ((o)->op_moresib = cBOOL(sib), (o)->op_sibling = (sib)); \
+    ASSERT_PTR_ALIGN(sib)
 #endif
 
 #if !defined(PERL_CORE) && !defined(PERL_EXT)

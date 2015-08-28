@@ -3525,6 +3525,7 @@ S_finalize_op(pTHX_ OP* o)
             if (has_last && !OpHAS_SIBLING(kid))
                 assert(kid == OpLAST(o));
 #  endif
+            DEBUG_kv(Perl_deb(aTHX_ "op_final: kid %s=%p\n", OP_NAME(kid), kid));
         }
 #endif
 
@@ -4973,6 +4974,10 @@ Perl_op_scope(pTHX_ OP *o)
 	if (OpPARENS(o) || PERLDB_NOOPT || TAINTING_get) {
 	    o = op_prepend_elem(OP_LINESEQ, newOP(OP_ENTER, 0), o);
             OpTYPE_set(o, OP_LEAVE);
+#ifdef DEBUGGING
+            if (o->op_flags & OPf_KIDS)
+                ASSERT_PTR_ALIGN(cUNOPo->op_first);
+#endif
 	}
 	else if (IS_TYPE(o, LINESEQ)) {
 	    OP *kid;
@@ -5377,13 +5382,14 @@ S_op_integerize(pTHX_ OP *o)
     return o;
 }
 
-
 /*
 =for apidoc op_typed
 
 Returns the declared or implicit coretype for
 the PADSV or CONST OP or the return type of all other ops.
 If with_native if false, the native types are reported as non-native.
+Skips to the next valid op if OP_NULL.
+Returns type_none for empty op.
 So far for scalars only
 
 =cut
@@ -5392,60 +5398,65 @@ static core_types_t
 S_op_typed(pTHX_ OP* o, bool with_native)
 {
     core_types_t t = type_none;
-    OPCODE type = o->op_type;
-    const U32 n2 = PL_op_type[type];
-    switch (type) {
-    case OP_CONST: {
-        SV* c = cSVOPx(o)->op_sv;
-        switch (SvTYPE(c)) {
-        case SVt_IV: if(!SvROK(c)) t = SvUOK(c) ? type_UInt : type_Int; break;
-        case SVt_PV: t = type_Str; break;
-        case SVt_NV: t = type_Num; break;
-        case SVt_PVIV: t = type_Scalar; break;
-        default: t = type_Scalar;
-        }
-    } break;
-    case OP_INT_CONST: case OP_INT_PADSV:
-        t = with_native ? type_int : type_Int; break;
-    case OP_UINT_CONST: case OP_UINT_PADSV:
-        t = with_native ? type_uint : type_UInt; break;
-    case OP_NUM_CONST: case OP_NUM_PADSV:
-        t = with_native ? type_num : type_Num; break;
-    case OP_STR_CONST: case OP_STR_PADSV:
-        t = with_native ? type_str : type_Str; break;
-    case OP_PADSV: {
-        /* This checks only the declaration, not the data.
-           The data was checked before in ck_pad */
-        PADNAME * const pn = PAD_COMPNAME(o->op_targ);
-        HV *typ = PadnameTYPE(pn);
-        /* XXX A very naive string check for the stashnames.
-           We should really use a PL_coretypes array with stash ptrs */
-        if (typ && HvNAME(typ)) {
-            const char *name = HvNAME(typ)+6;
-            const int l = HvNAMELEN(typ) - 6;
-            assert(l>0);
-            if      (memEQs(name, l, "int")
-                  || memEQs(name, l, "Int"))
-                t = with_native ? (*name == 'i' ? type_int : type_Int) : type_Int;
-            else if (memEQs(name, l, "num")
-                  || memEQs(name, l, "Num"))
-                t = with_native ? (*name == 'n' ? type_num : type_Num) : type_Num;
-            else if (memEQs(name, l, "uint")
-                  || memEQs(name, l, "UInt"))
-                t = with_native ? (*name == 'u' ? type_uint : type_UInt) : type_UInt;
-            else if (memEQs(name, l, "str")
-                  || memEQs(name, l, "Str"))
-                t = with_native ? (*name == 's' ? type_str : type_Str) : type_Str;
-            else if (memEQs(name, l, "Numeric"))
-                t = type_Numeric;
-            else
+    if (!o) return t;
+    if (OP_TYPE_IS_NN(o,OP_NULL))
+        o = S_op_next_nn(o);
+    {
+        OPCODE type = o->op_type;
+        const U32 n2 = PL_op_type[type];
+        switch (type) {
+        case OP_CONST: {
+            SV* c = cSVOPx(o)->op_sv;
+            switch (SvTYPE(c)) {
+            case SVt_IV: if(!SvROK(c)) t = SvUOK(c) ? type_UInt : type_Int; break;
+            case SVt_PV: t = type_Str; break;
+            case SVt_NV: t = type_Num; break;
+            case SVt_PVIV: t = type_Scalar; break;
+            default: t = type_Scalar;
+            }
+        } break;
+        case OP_INT_CONST: case OP_INT_PADSV:
+            t = with_native ? type_int : type_Int; break;
+        case OP_UINT_CONST: case OP_UINT_PADSV:
+            t = with_native ? type_uint : type_UInt; break;
+        case OP_NUM_CONST: case OP_NUM_PADSV:
+            t = with_native ? type_num : type_Num; break;
+        case OP_STR_CONST: case OP_STR_PADSV:
+            t = with_native ? type_str : type_Str; break;
+        case OP_PADSV: {
+            /* This checks only the declaration, not the data.
+               The data was checked before in ck_pad */
+            PADNAME * const pn = PAD_COMPNAME(o->op_targ);
+            HV *typ = PadnameTYPE(pn);
+            /* XXX A very naive string check for the stashnames.
+               We should really use a PL_coretypes array with stash ptrs */
+            if (typ && HvNAME(typ)) {
+                const char *name = HvNAME(typ)+6;
+                const int l = HvNAMELEN(typ) - 6;
+                assert(l>0);
+                if      (memEQs(name, l, "int")
+                         || memEQs(name, l, "Int"))
+                    t = with_native ? (*name == 'i' ? type_int : type_Int) : type_Int;
+                else if (memEQs(name, l, "num")
+                         || memEQs(name, l, "Num"))
+                    t = with_native ? (*name == 'n' ? type_num : type_Num) : type_Num;
+                else if (memEQs(name, l, "uint")
+                         || memEQs(name, l, "UInt"))
+                    t = with_native ? (*name == 'u' ? type_uint : type_UInt) : type_UInt;
+                else if (memEQs(name, l, "str")
+                         || memEQs(name, l, "Str"))
+                    t = with_native ? (*name == 's' ? type_str : type_Str) : type_Str;
+                else if (memEQs(name, l, "Numeric"))
+                    t = type_Numeric;
+                else
+                    t = type_Scalar;
+            } else {
                 t = type_Scalar;
-        } else {
-            t = type_Scalar;
+            }
+        } break;
+        default:
+            t = (core_types_t)(n2 & 0xff);
         }
-    } break;
-    default:
-        t = (core_types_t)(n2 & 0xff);
     }
     return t;
 }
@@ -5477,6 +5488,7 @@ S_op_pad2const(pTHX_ OP* firstkid, OP* o) {
     op_sibling_splice(firstkid, NULL, 1, constop);
     o->op_targ = NOT_IN_PAD; /* keep the sv refcnt? */
     constop->_OP_SIBPARENT_FIELDNAME = o->_OP_SIBPARENT_FIELDNAME;
+    ASSERT_PTR_ALIGN(o->_OP_SIBPARENT_FIELDNAME);
     constop->op_next = o->op_next;
     op_free(o);
     return constop;
@@ -9921,31 +9933,11 @@ Perl_newATTRSUB_x(pTHX_ I32 floor, OP *o, OP *proto, OP *attrs,
 	start = LINKLIST(block);
 	block->op_next = 0;
         if (ps && !*ps && !attrs && !CvLVALUE(PL_compcv))
-            const_sv =
-                S_op_const_sv(aTHX_ start, PL_compcv,
-                                        cBOOL(CvCLONE(PL_compcv)));
+            const_sv = S_op_const_sv(aTHX_ start, PL_compcv,
+                                     cBOOL(CvCLONE(PL_compcv)));
         else
             const_sv = NULL;
     }
-
-    if (!block
-#ifndef USE_CPERL_not_yet
-        /* allow inlining of constant bodies on cperl even without empty proto*/
-        || !ps || *ps /* perl5: sub x{1} => no proto, so not inlinable */
-#endif
-        /* the core attrs are already applied and attrs will be empty.
-           we need to keep the cv to call user-attrs on it. */
-        || attrs
-	|| CvLVALUE(PL_compcv)
-	) {
-	const_sv = NULL;
-    } else
-        /* check the body if it's in-lineable.
-           TODO: return an OP* to be able to inline more ops than just one SV*.
-           TODO: should :const enforce inlining?
-         */
-	const_sv =
-	    S_op_const_sv(aTHX_ start, PL_compcv, cBOOL(CvCLONE(PL_compcv)));
 
     if (SvPOK(gv) || (SvROK(gv) && SvTYPE(SvRV(gv)) != SVt_PVCV)) {
 	cv_ckproto_len_flags((const CV *)gv,
@@ -15544,16 +15536,16 @@ Perl_ck_type(pTHX_ OP *o)
         DEBUG_k(Perl_deb(aTHX_ "ck_type: %s(%s:%s)\n", PL_op_name[typ],
                     OP_NAME(a), core_type_name(type1)));
         DEBUG_kv(op_dump(a));
-        /* search for typed variants and check matching types */
+        /* search for typed variants and check matching argument types */
         if (n) {
             int i;
             for (i=1; i<=n; i++) {
                 int v = OP_TYPE_UPVARIANT(typ, i);
                 if (v) {
                     const U32 n2 = PL_op_type[v];
-                    DEBUG_k(Perl_deb(aTHX_ "match: %s %s + :%s <=> %s %s\n",
-                                     PL_op_name[typ], PL_op_type_str[typ],
-                                     core_type_name(type1), PL_op_name[v], PL_op_type_str[v]));
+                    DEBUG_kv(Perl_deb(aTHX_ "type: %s %s ~ (:%s) <=> %s %s\n",
+                                      PL_op_name[typ], PL_op_type_str[typ],
+                                      core_type_name(type1), PL_op_name[v], PL_op_type_str[v]));
                     /* need an Int result, no u_ */
                     if ((PL_hints & HINT_INTEGER)
                         && ((n2 & 0xff) != type_Int) && ((n2 & 0xff) != type_int))
@@ -15596,8 +15588,10 @@ Perl_ck_type(pTHX_ OP *o)
                 int v = OP_TYPE_UPVARIANT(typ, i);
                 if (v) {
                     const U32 n2 = PL_op_type[v];
-                    DEBUG_kv(Perl_deb(aTHX_ "match: %s %s + :%s <=> %s %s\n", PL_op_name[typ], PL_op_type_str[typ],
-                                core_type_name(type1), PL_op_name[v], PL_op_type_str[v]));
+                    DEBUG_kv(Perl_deb(aTHX_ "type: %s %s ~ (:%s,:%s) <=> %s %s\n", PL_op_name[typ],
+                                 PL_op_type_str[typ],
+                                 core_type_name(type1), core_type_name(type2),
+                                 PL_op_name[v], PL_op_type_str[v]));
                     if ((PL_hints & HINT_INTEGER) && ((n2 & 0xff) != type_Int)) /* need an Int result, no u_ */
                         continue;
                     if (match_type2(n2 & 0xffffff00, type1, type2)) {
@@ -17281,7 +17275,7 @@ S_op_upgrade_native(pTHX_ OP* o, OPCODE c, bool mod)
         SvREFCNT_dec(cSVOPo->op_sv);   \
         cSVOPo->op_sv = (SV*)(v);      \
     }
-#define UPGRADE_PAD(o, c)              \
+#define UPGRADE_PAD(o,c,sv)            \
     if (mod) {                         \
         OpTYPE_set(o, c);              \
         o->op_private |= OPpPAD_NATIVE;\
@@ -17340,26 +17334,26 @@ S_op_upgrade_native(pTHX_ OP* o, OPCODE c, bool mod)
         case OP_INT_PADSV:
             if (SvANY(sv) && !SvIOK(sv))
                 bad_type_declared(sv, "int");
-            UPGRADE_PAD(o, c);
+            UPGRADE_PAD(o, c, sv);
             SvIOK_on(sv);
             return TRUE;
         case OP_UINT_PADSV:
             if (SvANY(sv) && (!SvIOK(sv) || !SvUOK(sv)))
                 bad_type_declared(sv, "uint");
-            UPGRADE_PAD(o, c);
+            UPGRADE_PAD(o, c, sv);
             SvIOK_only_UV(sv);
             return TRUE;
         case OP_NUM_PADSV:
             if (SvANY(sv) && !SvNOK(sv))
                 bad_type_declared(sv, "num");
-            UPGRADE_PAD(o, c);
+            UPGRADE_PAD(o, c, sv);
             SvNOK_on(sv);
             return TRUE;
         case OP_STR_PADSV:
             if (SvANY(sv) && !SvPOK(sv))
                 bad_type_declared(sv, "str");
             if (is_native_string(sv->sv_u.svu_pv, SvANY(sv) ? SvCUR(sv) : 0)) {
-                UPGRADE_PAD(o, c);
+                UPGRADE_PAD(o, c, sv);
                 SvPOK_on(sv);
                 return TRUE;
             }
@@ -17435,9 +17429,11 @@ S_op_downgrade_native(pTHX_ OP* o, bool with_box) {
             o->op_private |= OPpBOXRET;
             return TRUE;
         } else {
-            SV* oldsv = cSVOPo_sv;
-            cSVOPo_sv_set(newSViv(cSVOPo_sv->sv_u.svu_iv));
-            SvREFCNT_dec_NN(oldsv);
+            SV* sv = PAD_SVl(o->op_targ);
+            IV iv = sv->sv_u.svu_iv;
+            sv_upgrade(sv, SVt_IV);
+            SvIV_set(sv, iv);
+            SvIOK_only(sv);
             OpTYPE_set(o, OP_PADSV);
             o->op_private &= ~OPpPAD_NATIVE;
         }
@@ -17447,9 +17443,11 @@ S_op_downgrade_native(pTHX_ OP* o, bool with_box) {
             o->op_private |= OPpBOXRET;
             return TRUE;
         } else {
-            SV* oldsv = cSVOPo_sv;
-            cSVOPo_sv_set(newSVuv(oldsv->sv_u.svu_uv));
-            SvREFCNT_dec_NN(oldsv);
+            SV* sv = PAD_SVl(o->op_targ);
+            UV uv = sv->sv_u.svu_uv;
+            sv_upgrade(sv, SVt_IV);
+            SvUV_set(sv, uv);
+            SvIOK_only_UV(sv);
             OpTYPE_set(o, OP_PADSV);
             o->op_private &= ~OPpPAD_NATIVE;
         }
@@ -17459,9 +17457,12 @@ S_op_downgrade_native(pTHX_ OP* o, bool with_box) {
             o->op_private |= OPpBOXRET;
             return TRUE;
         } else {
-            SV* oldsv = cSVOPo_sv;
-            cSVOPo_sv_set(newSVpvn(oldsv->sv_u.svu_pv, strlen(oldsv->sv_u.svu_pv)));
-            SvREFCNT_dec_NN(oldsv);
+            SV* sv = PAD_SVl(o->op_targ);
+            char *pv = sv->sv_u.svu_pv;
+            sv_upgrade(sv, SVt_PV);
+            SvPV_set(sv, pv);
+            SvCUR_set(sv, strlen(pv));
+            SvPOK_only(sv);
             OpTYPE_set(o, OP_PADSV);
             o->op_private &= ~OPpPAD_NATIVE;
         }
@@ -17470,9 +17471,17 @@ S_op_downgrade_native(pTHX_ OP* o, bool with_box) {
         if (with_box)
             o->op_private |= OPpBOXRET;
         else {
-            SV* oldsv = cSVOP_sv;
-            cSVOPo_sv_set(newSVnv(oldsv->sv_u.svu_nv));
-            SvREFCNT_dec_NN(oldsv);
+#if NVSIZE <= IVSIZE
+            SV* sv = PAD_SVl(o->op_targ);
+            NV nv = sv->sv_u.svu_nv;
+            sv_upgrade(sv, SVt_NV);
+            SvNV_set(sv, nv);
+            SvNOK_only(sv);
+            OpTYPE_set(o, OP_PADSV);
+            o->op_private &= ~OPpPAD_NATIVE;
+#else
+            o->op_private |= OPpBOXRET;
+#endif
         }
         break;
     default:
@@ -17524,12 +17533,15 @@ S_op_native_variant(pTHX_ OP* o, core_types_t t) {
         for (i=1; i<=n; i++) {
             int v = OP_TYPE_UPVARIANT(typ, i);
             if (v) {
+                /* check matching return type */
                 const U32 n2 = PL_op_type[v];
-                DEBUG_kv(Perl_deb(aTHX_ "match: %s %s + :%s <=> %s %s\n",
-                                  PL_op_name[typ], PL_op_type_str[typ],
-                            core_type_name(t), PL_op_name[v], PL_op_type_str[v]));
                 if (oc == OA_UNOP || oc == OA_BASEOP_OR_UNOP) {
-                    core_types_t type1 = op_typed(cUNOPo->op_first);
+                    OP* first = cBINOPo->op_first;
+                    core_types_t type1 = op_typed(first);
+                    DEBUG_kv(Perl_deb(aTHX_ "type: %s %s ~ (:%s):%s <=> %s %s\n",
+                                 PL_op_name[typ],
+                                 PL_op_type_str[typ], core_type_name(type1),
+                                 core_type_name(t), PL_op_name[v], PL_op_type_str[v]));
                     if ((PL_hints & HINT_INTEGER)
                         && ((n2 & 0xff) != type_Int) && ((n2 & 0xff) != type_int))
                         continue;
@@ -17537,10 +17549,15 @@ S_op_native_variant(pTHX_ OP* o, core_types_t t) {
                         return v;
                 }
                 else if (oc == OA_BINOP) {
-                    core_types_t type1 = op_typed(cBINOPo->op_first);
-                    /* sassign can have an empty rhs? */
-                    core_types_t type2 = cBINOPo->op_last ?
-                        op_typed(cBINOPo->op_last) : type_none;
+                    OP* first = cBINOPo->op_first;
+                    OP* last  = cBINOPo->op_last;
+                    core_types_t type1 = op_typed(first);
+                    /* sassign can have an empty rhs as {an,or,dor}assign */
+                    core_types_t type2 = op_typed(last);
+                    DEBUG_kv(Perl_deb(aTHX_ "type: %s %s ~ (:%s,:%s):%s <=> %s %s\n",
+                                 PL_op_name[typ],
+                                 PL_op_type_str[typ], core_type_name(type1), core_type_name(type2),
+                                 core_type_name(t), PL_op_name[v], PL_op_type_str[v]));
                     /* need an Int result, no u_ */
                     if ((PL_hints & HINT_INTEGER) && ((n2 & 0xff) != type_Int))
                         continue;
@@ -17561,6 +17578,9 @@ S_op_native_variant(pTHX_ OP* o, core_types_t t) {
                 else if (oc == OA_SVOP || typ == OP_PADSV) {
                     /* first match our data, if not reject */
                     core_types_t ourt = op_typed(o);
+                    DEBUG_kv(Perl_deb(aTHX_ "type: %s %s ~ ():%s <=> %s %s\n",
+                                 PL_op_name[typ], PL_op_type_str[typ],
+                                 core_type_name(t), PL_op_name[v], PL_op_type_str[v]));
                     if (t != ourt) {
                         /* allow upgrading int to uint if positive */
                         if ((t == type_int || t == type_uint)
@@ -17613,13 +17633,29 @@ S_op_insert_box(pTHX_ OP* o, OP* o2) {
         default:        return;
         }
         if (v) {
-            /* XXX possible bug */
+            /* XXX possible bug, missing sibling fixup */
             DEBUG_k(Perl_deb(aTHX_ "native: insert %s for %s -> %s\n", PL_op_name[v],
                          OP_NAME(o), o2?OP_NAME(o2):""));
             assert(o != o2);
             assert(o->op_next == o2);
-            o->op_next = newOP(v, 0);
-            o->op_next->op_next = o2;
+#ifdef PERL_OP_PARENT
+ #error no OP_PARENT support yet
+#endif
+            if (o->op_sibling && o->op_sibling == o->op_next) {
+                o->op_next = newOP(v, 0);
+                o->op_sibling = o->op_next;
+                o = o->op_next;
+                o->op_next = o->op_sibling = o2;
+                o->op_moresib = 1;
+            } else {
+                o->op_next = newOP(v, 0);
+                if (o->op_sibling) {
+                    o->op_next->op_sibling = o->op_sibling;
+                    o->op_sibling = o->op_next;
+                    o->op_moresib = 1;
+                }
+                o->op_next->op_next = o2;
+            }
         }
     }
 }
@@ -17747,6 +17783,7 @@ Perl_rpeep(pTHX_ OP *o)
                     op_insert_box(o, o->op_next);
                     continue;
                 }
+                oldop = NULL;
                 goto multideref;
             }
             if (o2) { /* end of sub is good */
@@ -17754,12 +17791,14 @@ Perl_rpeep(pTHX_ OP *o)
                 if ( seen_pushmark ) {
                     DEBUG_kv(Perl_deb(aTHX_ "native: inside pushmark .. %s forbidden\n", OP_NAME(o2)));
                     op_downgrade_oplist(o, o2);
+                    oldop = NULL;
                     goto multideref;
                 }
                 /* need to box 2, not 1 */
                 if ((OP_IS_BINOP(type2) || OP_IS_LOGOP(type2)) && i < 2) {
                     DEBUG_kv(Perl_deb(aTHX_ "native: ending %s needs the last 2 ops boxed\n", OP_NAME(o2)));
                     op_downgrade_oplist(o, o2);
+                    oldop = NULL;
                     goto multideref;
                 }
             }
@@ -17790,6 +17829,7 @@ Perl_rpeep(pTHX_ OP *o)
                              OP_NAME(o2), i));
                 if (i < 2) {
                     op_downgrade_oplist(o, o2);
+                    oldop = NULL;
                     goto multideref;
                 }
                 if (!prevnative) prevnative = o;
@@ -18043,9 +18083,7 @@ Perl_rpeep(pTHX_ OP *o)
 		if (   OP_TYPE_IS(next, OP_PUSHMARK)
 		    && OP_TYPE_IS(sibling, OP_RETURN)
 		    && OP_TYPE_IS(sibling->op_next, OP_LINESEQ)
-		    && ( OP_TYPE_IS(sibling->op_next->op_next, OP_LEAVESUB)
-		       ||OP_TYPE_IS(sibling->op_next->op_next,
-				    OP_LEAVESUBLV))
+		    && IS_LEAVESUB_OP(sibling->op_next->op_next)
 		    && OpFIRST(sibling) == next
 		    && OpHAS_SIBLING(next) && OpSIBLING(next)->op_next
 		    && next->op_next
