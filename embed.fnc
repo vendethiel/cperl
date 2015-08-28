@@ -542,6 +542,10 @@ Ap	|void	|free_tmps
 #if defined(PERL_IN_OP_C)
 s	|OP*	|gen_constant_list|NULLOK OP* o
 #endif
+#if defined(PERL_IN_OP_C) || defined(PERL_IN_PP_HOT_C)
+: defined in op.c, used in pp_hot.c
+dMp	|void	|op_native_padsv|NN OP* o
+#endif
 #if !defined(HAS_GETENV_LEN)
 : Used in hv.c
 p	|char*	|getenv_len	|NN const char *env_elem|NN unsigned long *len
