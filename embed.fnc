@@ -1080,7 +1080,7 @@ i|const char *  |core_type_name	|core_types_t t
 i|core_types_t	|stash_to_coretype|NULLOK const HV* stash
 in	|int	|match_type1	|const U32 sig|core_types_t arg1
 in	|int	|match_type2	|const U32 sig|core_types_t arg1|core_types_t arg2
-sd	|OPCODE |op_native_variant|NN OP* o|core_types_t t
+s	|OPCODE |op_native_variant|NN OP* o|core_types_t typeret|NN int* do_cast
 i	|IV	|const_iv	|NN OP* o
 i	|bool	|can_const_iv	|NN OP* o
 s	|OP*	|op_pad2const	|NN OP* firstkid|NN OP* o

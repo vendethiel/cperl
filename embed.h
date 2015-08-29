@@ -1758,7 +1758,7 @@
 #define op_downgrade_oplist(a,b)	S_op_downgrade_oplist(aTHX_ a,b)
 #define op_insert_box(a,b)	S_op_insert_box(aTHX_ a,b)
 #define op_integerize(a)	S_op_integerize(aTHX_ a)
-#define op_native_variant(a,b)	S_op_native_variant(aTHX_ a,b)
+#define op_native_variant(a,b,c)	S_op_native_variant(aTHX_ a,b,c)
 #define op_next_nn		S_op_next_nn
 #define op_pad2const(a,b)	S_op_pad2const(aTHX_ a,b)
 #define op_sibling_newUNOP(a,b,c,d)	S_op_sibling_newUNOP(aTHX_ a,b,c,d)

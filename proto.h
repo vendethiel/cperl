@@ -8543,10 +8543,11 @@ PERL_STATIC_INLINE OP*	S_op_integerize(pTHX_ OP *o)
 	assert(o)
 #endif
 
-STATIC OPCODE	S_op_native_variant(pTHX_ OP* o, core_types_t t)
-			__attribute__nonnull__(pTHX_1);
+STATIC OPCODE	S_op_native_variant(pTHX_ OP* o, core_types_t typeret, int* do_cast)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_3);
 #define PERL_ARGS_ASSERT_OP_NATIVE_VARIANT	\
-	assert(o)
+	assert(o); assert(do_cast)
 
 #ifndef PERL_NO_INLINE_FUNCTIONS
 PERL_STATIC_INLINE OP*	S_op_next_nn(OP* o)
