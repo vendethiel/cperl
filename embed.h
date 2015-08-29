@@ -1791,7 +1791,8 @@
 #    endif
 #  endif
 #  if defined(PERL_IN_OP_C) || defined(PERL_IN_PP_HOT_C)
-#define op_native_padsv(a)	Perl_op_native_padsv(aTHX_ a)
+#define op_native_padsv_off(a)	Perl_op_native_padsv_off(aTHX_ a)
+#define op_native_padsv_on(a)	Perl_op_native_padsv_on(aTHX_ a)
 #  endif
 #  if defined(PERL_IN_OP_C) || defined(PERL_IN_SV_C)
 #define report_redefined_cv(a,b,c)	Perl_report_redefined_cv(aTHX_ a,b,c)

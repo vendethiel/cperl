@@ -8691,9 +8691,14 @@ STATIC void	S_op_clear_gv(pTHX_ OP* o, PADOFFSET *ixp)
 #  endif
 #endif
 #if defined(PERL_IN_OP_C) || defined(PERL_IN_PP_HOT_C)
-PERL_CALLCONV void	Perl_op_native_padsv(pTHX_ OP* o)
+PERL_CALLCONV void	Perl_op_native_padsv_off(pTHX_ OP* o)
 			__attribute__nonnull__(pTHX_1);
-#define PERL_ARGS_ASSERT_OP_NATIVE_PADSV	\
+#define PERL_ARGS_ASSERT_OP_NATIVE_PADSV_OFF	\
+	assert(o)
+
+PERL_CALLCONV void	Perl_op_native_padsv_on(pTHX_ OP* o)
+			__attribute__nonnull__(pTHX_1);
+#define PERL_ARGS_ASSERT_OP_NATIVE_PADSV_ON	\
 	assert(o)
 
 #endif
