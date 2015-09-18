@@ -1,4 +1,7 @@
 #!./perl -w
+# perl comes with a perlmain.c. This is to build a changed perlmain.c,
+# if static_ext are defined.
+
 package ExtUtils::Miniperl;
 use strict;
 require Exporter;
@@ -10,7 +13,7 @@ use vars qw($VERSION @ISA @EXPORT);
 @EXPORT = qw(writemain);
 $VERSION = '1.06';
 
-# blead will run this with miniperl, hence we can't use autodie or File::Temp
+# We can't use autodie or File::Temp
 my $temp;
 
 END {
@@ -54,8 +57,8 @@ sub writemain{
  *     [Frodo on p.73 of _The Lord of the Rings_, I/iii: "Three Is Company"]
  */
 
-/* This file contains the main() function for the perl interpreter.
- * It loads all predefined static extensions.
+/* This file contains the main() function for the perl interpreter
+ * and xs_init() to boot the static extensions.
  */
 
 #ifdef OEMVS
