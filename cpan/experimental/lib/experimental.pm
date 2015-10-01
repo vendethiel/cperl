@@ -138,7 +138,7 @@ version 0.016_01c
 
 =head1 SYNOPSIS
 
- use experimental 'lexical_subs', 'smartmatch';
+ use experimental 'refaliasing', 'smartmatch';
  my sub foo { $_[0] ~~ 1 }
 
 =head1 DESCRIPTION

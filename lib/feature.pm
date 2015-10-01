@@ -273,7 +273,7 @@ regardless of what feature declarations are in scope.
 =head2 The 'signatures' feature
 
 B<cperl>: This feature is enabled per default with L<cperl>. cperl has
-a significantly enhanced version to the 5.20 and 5.22 version
+a significantly enhanced version to the 5.20-5.26 versions
 of perl experimental signatures. cperl can parse old-style prototypes
 and new-style signatures dynamically, and does not need to disable warnings
 for them.
