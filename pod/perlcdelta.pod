@@ -109,6 +109,14 @@ L<[cperl #257]|https://github.com/perl11/cperl/issues/257>
 
 Update documentation from the CPAN version.
 
+=item Test-Simple 1.402075c
+
+Based on 1.302059, i.e. Test2.
+
+Modernized. B<skip> does the switched argument check at compile-time.
+See the FAQ at L<http://perl11.org/cperl/STATUS.html> why we enforce
+stricter types there.
+
 =item threads  2.15
 
 Remove extra terminating semicolon.
