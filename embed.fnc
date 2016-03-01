@@ -631,6 +631,7 @@ AbmdRp	|bool	|hv_exists	|NULLOK HV *hv|NN const char *key|I32 klen
 AbmdRp	|bool	|hv_exists_ent	|NULLOK HV *hv|NN SV *keysv|U32 hash
 Abmdp	|SV**	|hv_fetch	|NULLOK HV *hv|NN const char *key|I32 klen \
 				|I32 lval
+: hash ignored
 Abmdp	|HE*	|hv_fetch_ent	|NULLOK HV *hv|NN SV *keysv|I32 lval|U32 hash
 Ap	|void*	|hv_common	|NULLOK HV *hv|NULLOK SV *keysv \
 				|NULLOK const char* key|I32 klen|int flags \
@@ -1838,6 +1839,7 @@ Apd	|I32	|unpack_str	|NN const char *pat|NN const char *patend|NN const char *s 
                                 |NULLOK char **new_s|I32 ocnt|U32 flags
 Apd	|I32	|unpackstring	|NN const char *pat|NN const char *patend|NN const char *s \
 				|NN const char *strend|U32 flags
+: hash ignored
 Ap	|void	|unsharepvn	|NULLOK const char* sv|I32 len|U32 hash
 : Used in gv.c, hv.c
 Ap	|void	|unshare_hek	|NULLOK const HEK* hek
@@ -2161,9 +2163,11 @@ s	|void	|hsplit		|NN HV *hv|U32 const oldsize|U32 newsize
 s	|void	|hfreeentries	|NN HV *hv
 s	|SV*	|hv_free_ent_ret|NN HV *hv|NN HE *entry
 sR	|HE*	|new_he
+: hash ignored
 sanR	|HEK*	|save_hek_flags	|NN const char *str|I32 len|U32 hash|int flags
 sn	|void	|hv_magic_check	|NN HV *hv|NN bool *needs_copy|NN bool *needs_store
 s	|void	|unshare_hek_or_pvn|NULLOK const HEK* hek|NULLOK const char* str|I32 len|U32 hash
+: hash mandatory
 sR	|HEK*	|share_hek_flags|NN const char *str|I32 len|U32 hash|int flags
 rs	|void	|hv_notallowed	|int flags|NN const char *key|I32 klen|NN const char *msg
 #if defined(PERL_HASH_RANDOMIZE_KEYS)

@@ -340,6 +340,14 @@ The lexer F<toke.c> is now guaranteed to work on a C<linestr> buffer SV with
 minimal PTRSIZE (4 or 8 byte) length, which enables to use fast word-wise comparison
 memcmp builtins. cperl only.
 
+=item *
+
+Hash keys don't store the calculated hash anymore. Thus this macro is
+now undefined: C<HEK_HASH(hek)>, and thos macros return now C<0>:
+C<HeHASH(he)>, C<SvSHARED_HASH(sv)>.
+C<HEK_HASH_calc(hek)> can be used to calculate the hash value from a HEK.
+L<[cperl #34]|https://github.com/perl11/cperl/issues/34>.
+
 =back
 
 =head1 Selected Bug Fixes

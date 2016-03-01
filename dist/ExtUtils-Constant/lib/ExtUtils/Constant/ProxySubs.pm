@@ -518,9 +518,9 @@ EXPLODE
 		hek = HeKEY_hek(he);
 		if (!hv_common(${c_subname}_missing, NULL, HEK_KEY(hek),
  			       HEK_LEN(hek), HEK_FLAGS(hek), HV_FETCH_ISSTORE,
-			       &PL_sv_yes, HEK_HASH(hek)))
-		    croak("Couldn't add key '%s' to missing_hash",
-			  value_for_notfound->name);
+			       &PL_sv_yes, 0/*HEK_HASH(hek)*/))
+		    Perl_croak($athx "Couldn't add key '%s' to missing_hash",
+			       value_for_notfound->name);
 #endif
 DONT
 
