@@ -689,9 +689,13 @@ Perl_hv_common(pTHX_ HV *hv, SV *keysv, const char *key, I32 klen,
 			HvPLACEHOLDERS(hv)--;
 		}
 		HeVAL(entry) = val;
+                if (SvOOK(hv))
+                    HvTIMESTAMP(hv)++;
 	    } else if (action & HV_FETCH_ISSTORE) {
 		SvREFCNT_dec(HeVAL(entry));
 		HeVAL(entry) = val;
+                if (SvOOK(hv))
+                    HvTIMESTAMP(hv)++;
 	    }
 	} else if (HeVAL(entry) == PLACEHOLDER) {
 	    /* A deleted slot. If we find a placeholder, we pretend we
@@ -860,6 +864,10 @@ Perl_hv_common(pTHX_ HV *hv, SV *keysv, const char *key, I32 klen,
 	HeKEY_hek(entry) = save_hek_flags(key, klen, hash, flags);
     HeVAL(entry) = val;
 
+    if (SvOOK(hv)) { /* aux struct present */
+        struct xpvhv_aux *const aux = HvAUX(hv);
+        ++aux->xhv_timestamp;
+    }
 #ifdef PERL_HASH_RANDOMIZE_KEYS
     /* This logic semi-randomizes the insert order in a bucket.
      * Either we insert into the top, or the slot below the top,
@@ -1333,7 +1341,7 @@ S_hv_delete_common(pTHX_ HV *hv, SV *keysv, const char *key, I32 klen,
 			/* No longer an element */
 			sv_unmagic(sv, PERL_MAGIC_tiedelem);
 			return sv;
-		    }		
+		    }
 		    return NULL;		/* element cannot be deleted */
 		}
 #ifdef ENV_IS_CASELESS
@@ -1578,14 +1586,19 @@ S_hv_delete_common(pTHX_ HV *hv, SV *keysv, const char *key, I32 klen,
 	    HvPLACEHOLDERS(hv)++;
 	else {
 	    *oentry = HeNEXT(entry);
-	    if (SvOOK(hv) && entry == HvAUX(hv)->xhv_eiter /* HvEITER(hv) */)
-		HvLAZYDEL_on(hv);
-	    else {
-		if (SvOOK(hv) && HvLAZYDEL(hv) &&
-		    entry == HeNEXT(HvAUX(hv)->xhv_eiter)) {
-		    HeNEXT(HvAUX(hv)->xhv_eiter) = HeNEXT(entry);
+            if (SvOOK(hv)) {
+                struct xpvhv_aux *const aux = HvAUX(hv);
+                aux->xhv_timestamp++;
+                if (entry == aux->xhv_eiter)
+                    HvLAZYDEL_on(hv);
+                else {
+                    if (HvLAZYDEL(hv) && entry == HeNEXT(aux->xhv_eiter)) {
+                        HeNEXT(aux->xhv_eiter) = HeNEXT(entry);
+                    }
+                    hv_free_ent(hv, entry);
                 }
-		hv_free_ent(hv, entry);
+	    } else {
+                hv_free_ent(hv, entry);
 	    }
 	    xhv->xhv_keys--;
 	    if (xhv->xhv_keys == 0)
@@ -1681,6 +1694,7 @@ S_hsplit(pTHX_ HV *hv, U32 const oldsize, U32 newsize)
 #ifdef PERL_HASH_RANDOMIZE_KEYS
             dest->xhv_rand = (U32)PL_hash_rand_bits;
 #endif
+            dest->xhv_timestamp++;
         } else {
             /* no existing aux structure, but we allocated space for one
              * so initialize it properly. This unrolls hv_auxinit() a bit,
@@ -1693,6 +1707,7 @@ S_hsplit(pTHX_ HV *hv, U32 const oldsize, U32 newsize)
             (void)hv_auxinit_internal(dest);
             /* Turn on the OOK flag */
             SvOOK_on(hv);
+            dest->xhv_timestamp++;
         }
     }
     /* now we can safely clear the second half */
@@ -2464,16 +2479,14 @@ PERL_STATIC_INLINE U32 S_ptr_hash(PTRV u) {
 static struct xpvhv_aux*
 S_hv_auxinit_internal(struct xpvhv_aux *iter) {
     PERL_ARGS_ASSERT_HV_AUXINIT_INTERNAL;
-    iter->xhv_riter = HV_NO_RITER;
-    iter->xhv_eiter = NULL;
 #ifdef PERL_HASH_RANDOMIZE_KEYS
-    iter->xhv_last_rand = iter->xhv_rand;
+    U32 last_rand = iter->xhv_rand;
 #endif
-    iter->xhv_name_u.xhvnameu_name = 0;
-    iter->xhv_name_count = 0;
-    iter->xhv_backreferences = 0;
-    iter->xhv_mro_meta = NULL;
-    iter->xhv_aux_flags = 0;
+    Zero(iter, sizeof(struct xpvhv_aux), char);
+    iter->xhv_riter = HV_NO_RITER;
+#ifdef PERL_HASH_RANDOMIZE_KEYS
+    iter->xhv_last_rand = iter->xhv_rand = last_rand;
+#endif
     return iter;
 }
 
@@ -2538,7 +2551,7 @@ Perl_hv_iterinit(pTHX_ HV *hv)
 	HE * const entry = iter->xhv_eiter;
 	if (entry && HvLAZYDEL(hv)) {	/* was deleted earlier? */
 	    HvLAZYDEL_off(hv);
-	    hv_free_ent(hv, entry);
+	    hv_free_ent(hv, entry); /* perform the deferred delete */
 	}
 	iter = HvAUX(hv); /* may have been reallocated */
 	iter->xhv_riter = HV_NO_RITER;
@@ -2546,6 +2559,7 @@ Perl_hv_iterinit(pTHX_ HV *hv)
 #ifdef PERL_HASH_RANDOMIZE_KEYS
         iter->xhv_last_rand = iter->xhv_rand;
 #endif
+        iter->xhv_savedstamp = iter->xhv_timestamp;
     } else {
 	hv_auxinit(hv);
     }
@@ -3000,6 +3014,8 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
             del_HE(entry);
             iter = HvAUX(hv); /* may been realloced */
             iter->xhv_eiter = NULL;
+            if (iter->xhv_timestamp != iter->xhv_savedstamp)
+                Perl_croak(aTHX_ "Attempt to change hash while iterating over it");
 	    HvLAZYDEL_off(hv);
             return NULL;
         }
@@ -3023,8 +3039,7 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
     assert (HvARRAY(hv));
 
     /* At start of hash, entry is NULL.  */
-    if (entry)
-    {
+    if (entry) {
 	entry = HeNEXT(entry);
         if (!(flags & HV_ITERNEXT_WANTPLACEHOLDERS)) {
             /*
@@ -3093,6 +3108,8 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
     }
 
     iter = HvAUX(hv); /* may been realloced */
+    if (iter->xhv_timestamp != iter->xhv_savedstamp)
+        Perl_croak(aTHX_ "Attempt to change hash while iterating over it");
     iter->xhv_eiter = entry;
     return entry;
 }
