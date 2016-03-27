@@ -689,13 +689,13 @@ Perl_hv_common(pTHX_ HV *hv, SV *keysv, const char *key, I32 klen,
 			HvPLACEHOLDERS(hv)--;
 		}
 		HeVAL(entry) = val;
-                if (SvOOK(hv))
-                    HvTIMESTAMP(hv)++;
+                /*if (SvOOK(hv))
+                  HvTIMESTAMP(hv)++; */
 	    } else if (action & HV_FETCH_ISSTORE) {
 		SvREFCNT_dec(HeVAL(entry));
 		HeVAL(entry) = val;
-                if (SvOOK(hv))
-                    HvTIMESTAMP(hv)++;
+                /*if (SvOOK(hv))
+                  HvTIMESTAMP(hv)++; */
 	    }
 	} else if (HeVAL(entry) == PLACEHOLDER) {
 	    /* A deleted slot. If we find a placeholder, we pretend we
@@ -2996,6 +2996,7 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
 
                 /* one HE per MAGICAL hash */
                 iter->xhv_eiter = entry = new_HE();
+                iter->xhv_savedstamp = iter->xhv_timestamp;
 		HvLAZYDEL_on(hv); /* make sure entry gets freed */
                 Zero(entry, 1, HE);
                 Newxz(k, HEK_BASESIZE + sizeof(const SV *), char);
@@ -3014,15 +3015,18 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
             del_HE(entry);
             iter = HvAUX(hv); /* may been realloced */
             iter->xhv_eiter = NULL;
-            if (iter->xhv_timestamp != iter->xhv_savedstamp)
-                Perl_croak(aTHX_ "Attempt to change hash while iterating over it");
+            if (iter->xhv_timestamp != iter->xhv_savedstamp) {
+                if (!cophh_fetch_pvs(CopHINTHASH_get(PL_curcop), "hashiter", REFCOUNTED_HE_EXISTS))
+                    Perl_croak(aTHX_ "Attempt to change hash while iterating over it");
+            }
 	    HvLAZYDEL_off(hv);
             return NULL;
         }
     }
 #if defined(DYNAMIC_ENV_FETCH) && !defined(__riscos__)  /* set up %ENV for iteration */
     if (!entry && SvRMAGICAL((const SV *)hv)
-	&& mg_find((const SV *)hv, PERL_MAGIC_env)) {
+	&& mg_find((const SV *)hv, PERL_MAGIC_env))
+    {
 	prime_env_iter();
 #ifdef VMS
 	/* The prime_env_iter() on VMS just loaded up new hash values
@@ -3032,6 +3036,7 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
 	iter = HvAUX(hv);
 	oldentry = entry = iter->xhv_eiter;
 #endif
+        iter->xhv_savedstamp = iter->xhv_timestamp;
     }
 #endif
 
@@ -3050,6 +3055,8 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
                 entry = HeNEXT(entry);
             }
 	}
+    } else {
+        iter->xhv_savedstamp = iter->xhv_timestamp;
     }
 
 #ifdef PERL_HASH_RANDOMIZE_KEYS
@@ -3062,6 +3069,7 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
         }
         iter = HvAUX(hv); /* may been realloced */
         iter->xhv_last_rand = iter->xhv_rand;
+        iter->xhv_savedstamp = iter->xhv_timestamp;
     }
 #endif
 
@@ -3102,14 +3110,16 @@ Perl_hv_iternext_flags(pTHX_ HV *hv, I32 flags)
 #endif
     }
 
-    if (oldentry && HvLAZYDEL(hv)) {		/* was deleted earlier? */
+    if (oldentry && HvLAZYDEL(hv)) { /* was deleted earlier? */
 	HvLAZYDEL_off(hv);
 	hv_free_ent(hv, oldentry);
     }
 
     iter = HvAUX(hv); /* may been realloced */
-    if (iter->xhv_timestamp != iter->xhv_savedstamp)
-        Perl_croak(aTHX_ "Attempt to change hash while iterating over it");
+    if (iter->xhv_timestamp != iter->xhv_savedstamp) {
+        if (!cophh_fetch_pvs(CopHINTHASH_get(PL_curcop), "hashiter", REFCOUNTED_HE_EXISTS))
+            Perl_croak(aTHX_ "Attempt to change hash while iterating over it");
+    }
     iter->xhv_eiter = entry;
     return entry;
 }
