@@ -3349,7 +3349,7 @@ h_sysfile (h_sysfile.U):
 hash_func (hash_func.U):
 	This variable, if not empty, defines the name of the configured hash
 	function, defined by the symbol PERL_HASH_FUNC_${hash_func}.
-        Default: MURMUR3
+        Default: FNV1A
         Valid hash_func names: FNV1A SIPHASH SUPERFAST DJB2 SDBM
         OAAT OAAT_HARD OAAT_OLD ONE_AT_A_TIME_HARD ONE_AT_A_TIME ONE_AT_A_TIME_OLD
         MURMUR3 MURMUR64A MURMUR64B MURMUR_HASH_64A MURMUR_HASH_64B CRC32 METRO64CRC
@@ -5547,7 +5547,7 @@ usecbacktrace (usebacktrace.U):
 	This variable indicates whether we are compiling with backtrace
 	support.
 
-usecperl (Devel.U):
+usecperl (usecperl.U):
 	This variable conditionally defines the USE_CPERL symbol,
 	and indicates that Perl is the cperl variant.
 
@@ -5657,6 +5657,12 @@ userelocatableinc (bin.U):
 	Any @INC paths starting ".../" are relocated relative to the directory
 	containing the perl binary, and a logical cleanup of the path is then
 	made around the join point (removing "dir/../" pairs)
+
+usesafehashiter (usecperl.U):
+	This variable conditionally defines the USE_SAFE_HASHITER symbol,
+	and indicates that Perl disallows changes of hash keys during iteration.
+        You need to permit it with 'use hashiter;' or set the key 'unsafe_hashiter'
+        in the current cop hints hash.
 
 useshrplib (libperl.U):
 	This variable is set to 'true' if the user wishes
