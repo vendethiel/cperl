@@ -301,7 +301,7 @@
 
 #ifdef PERL_EXACT_ARITH
 #define IS_EXACT_ARITH   cop_hints_fetch_pvs(PL_curcop, "exact_arith", REFCOUNTED_HE_EXISTS)
-#else           
+#else
 #define IS_EXACT_ARITH   0
 #endif
 
