@@ -5479,6 +5479,14 @@
 /*#define	USE_SANITIZE_ADDRESS		/ **/
 #endif
 
+/* USE_EXACT_ARITH:
+ *	This symbol, if defined, indicates that Perl uses exact_arith as default.
+ */
+#define PERL_EXACT_ARITH
+#ifndef USE_EXACT_ARITH
+#	USE_EXACT_ARITH		/**/
+#endif
+
 /* PERL_HASH_FUNC_*:
  *	This symbol defines the used perl hash function variant.
  *      It is set in Configure or via -Dhash_func=, but can be left blank.
@@ -5498,6 +5506,6 @@
 #endif
 
 /* Generated from:
- * d6185b0a78c38e26ca03da044c402b5474a8da01617d7a0f63f2e45d0dc17f6f config_h.SH
+ * 59c75c3eeeb87d800d2e646eb3b6c2e9f52fad75adffa174ce9d05c01b416065 config_h.SH
  * 94a1cca2987bf62ce97086cf5a222efe3b58d3a2644376ebf1845677a55676ce uconfig.sh
  * ex: set ro: */

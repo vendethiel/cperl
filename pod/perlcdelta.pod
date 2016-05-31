@@ -111,8 +111,14 @@ Update documentation from the CPAN version.
 
 =item threads  2.15
 
-Remove extra terminating semicolon.
-Clean up temporary directories after testing.
+
+=head2 New Modules and Pragmata
+
+Added B<exact_arith> pragma
+
+Promote on overflow to bigint/num as in perl6, do not loose precision
+with all builtin arithmetic operators.
+L<[cperl #21]|https://github.com/perl11/cperl/issues/21>
 
 =item threads-shared  1.55
 
