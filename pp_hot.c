@@ -763,8 +763,9 @@ PPt(pp_add, "(:Number,:Number):Number")
                 if (BUILTIN_UADD_OVERFLOW(auv, buv, &result)) {
 #ifdef PERL_EXACT_ARITH
                     if (UNLIKELY(IS_EXACT_ARITH)) {
+                        PUTBACK;
                         bigint_arith("badd", svl, svr);
-                        RETURN;
+                        return NORMAL;
                     }
                     else
 #endif
@@ -782,8 +783,9 @@ PPt(pp_add, "(:Number,:Number):Number")
                 if (BUILTIN_SADD_OVERFLOW(aiv, biv, &value)) {
 #ifdef PERL_EXACT_ARITH
                     if (UNLIKELY(IS_EXACT_ARITH)) {
+                        PUTBACK;
                         bigint_arith("badd", svl, svr);
-                        RETURN;
+                        return NORMAL;
                     }
                     else
 #endif
@@ -852,8 +854,9 @@ PPt(pp_add, "(:Number,:Number):Number")
 		    else {
 #ifdef PERL_EXACT_ARITH
                         if (UNLIKELY(IS_EXACT_ARITH)) {
+                            PUTBACK;
                             bigint_arith("badd", svl, svr);
-                            RETURN;
+                            return NORMAL;
                         }
                     else
 #endif
@@ -865,8 +868,9 @@ PPt(pp_add, "(:Number,:Number):Number")
 	    } /* Overflow, drop through to NVs.  */
 #ifdef PERL_EXACT_ARITH
             else if (UNLIKELY(IS_EXACT_ARITH)) {
+                PUTBACK;
                 bigint_arith("badd", svl, svr);
-                RETURN;
+                return NORMAL;
             }
 #endif
 #endif
