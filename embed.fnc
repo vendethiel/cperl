@@ -462,7 +462,8 @@ Apmb	|bool	|do_open	|NN GV* gv|NN const char* name|I32 len|int as_raw \
 Ap	|bool	|do_open9	|NN GV *gv|NN const char *name|I32 len|int as_raw \
 				|int rawmode|int rawperm|NULLOK PerlIO *supplied_fp \
 				|NN SV *svs|I32 num
-AMp	|void	|bigint_arith	|NN const char *op|NN SV *const left|NN SV *const right
+AMp	|void	|exact_arith	|NN const char *pkg|NN const char *op \
+				|NN SV *const left|NN SV *const right
 #if defined(PERL_IN_DOIO_C)
 s	|IO *	|openn_setup    |NN GV *gv|NN char *mode|NN PerlIO **saveifp \
 				|NN PerlIO **saveofp|NN int *savefd \
