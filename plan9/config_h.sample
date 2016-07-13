@@ -4266,5 +4266,9 @@
 # define	PERL_HASH_FUNC_FNV1A	/**/
 #endif
 
+/* EXE_EXT:
+ *	This symbol is either ".exe" on dosish system, ".pm" on Stratus VOS or undefined.
+ */
+
 #endif
 
