@@ -2774,7 +2774,7 @@ PP(pp_goto)
            sig2pp: goto pad=>@_, pp2sig: goto @=>stack, signature stack=>pad.
            BTW: Not using a real stack but a heap array doesn't help neither.
         */
-	if (SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVCV) {
+	if (SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVCV && !do_dump) {
 	    I32 cxix;
 	    PERL_CONTEXT *cx;
 	    CV *cv = MUTABLE_CV(SvRV(sv));
@@ -3212,8 +3212,8 @@ PP(pp_goto)
 		DIE(aTHX_ "Can't \"goto\" out of a pseudo block");
 	    PL_lastgotoprobe = gotoprobe;
 	}
-	if (!retop)
-	    DIE(aTHX_ "Can't find label %" UTF8f,
+	if (!retop && !do_dump)
+	    DIE(aTHX_ "Can't find label %" UTF8f, 
 		       UTF8fARG(label_flags, label_len, label));
 
 	/* if we're leaving an eval, check before we pop any frames
@@ -3227,7 +3227,7 @@ PP(pp_goto)
                     DIE(aTHX_ "Can't \"goto\" into the middle of a foreach loop");
 	}
 
-	if (*enterops && enterops[1]) {
+	if (*enterops && enterops[1] && !do_dump) {
 	    I32 i = enterops[1]->op_type == OP_ENTER && in_block ? 2 : 1;
 	    if (enterops[i])
 		deprecate("\"goto\" to jump into a construct");
@@ -3236,16 +3236,20 @@ PP(pp_goto)
 	/* pop unwanted frames */
 
 	if (ix < cxstack_ix) {
-	    if (ix < 0)
-		DIE(aTHX_ "panic: docatch: illegal ix=%ld", (long)ix);
-	    dounwind(ix);
-            cx = CX_CUR();
-	    cx_topblock(cx);
+            if (ix < 0 && do_dump) /* allow dump name */
+                ;
+            else {
+                if (ix < 0)
+                    DIE(aTHX_ "panic: docatch: illegal ix=%ld", (long)ix);
+                dounwind(ix);
+                cx = CX_CUR();
+                cx_topblock(cx);
+            }
 	}
 
 	/* push wanted frames */
 
-	if (*enterops && enterops[1]) {
+	if (*enterops && enterops[1] && !do_dump) {
 	    OP * const oldop = PL_op;
 	    ix = enterops[1]->op_type == OP_ENTER && in_block ? 2 : 1;
 	    for (; enterops[ix]; ix++) {
@@ -3267,7 +3271,7 @@ PP(pp_goto)
 	PL_restartop = retop;
 	PL_do_undump = TRUE;
 
-	my_unexec();
+	my_unexec(label);
 
 	PL_restartop = 0;		/* hmm, must be GNU unexec().. */
 	PL_do_undump = FALSE;

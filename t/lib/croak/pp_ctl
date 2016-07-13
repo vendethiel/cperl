@@ -1,7 +1,7 @@
 __END__
-# NAME dump with computed label
+# NAME goto with computed label
 my $label = "foo";
-dump $label;
+goto $label;
 EXPECT
 Can't find label foo at - line 2.
 ########
