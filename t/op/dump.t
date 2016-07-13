@@ -23,7 +23,7 @@ skip_all("only tested on devel builds")
 # fork() and waitpid().
 
 skip_all("no point in dumping on $^O")
-  unless $^O =~ /^(linux|.*bsd|solaris|darwin)$/;
+  unless $Config{unexec} or $^O =~ /^(linux|.*bsd|solaris|darwin)$/;
 
 skip_all("avoid coredump under ASan")
   if  $Config{ccflags} =~ /-fsanitize=/;
@@ -37,11 +37,12 @@ my $start = getcwd;
 # return an absolute path, so once we change directories it can't
 # find ./perl, resulting in test failures
 $^X = File::Spec->rel2abs($^X);
+my $PRE = $^O eq 'MSWin32' ? '' : './';
 
 chdir $tmp
   or skip_all("Cannot chdir to work directory");
 
-plan(2);
+plan(3 + (3 * 3 * ($Config{unexec} ? 1 : 0)));
 
 # Depending on how perl is built, there may be extraneous stuff on stderr
 # such as "Aborted", which isn't caught by the '2>&1' that
@@ -74,10 +75,17 @@ if ($pid) {
 else {
     # child
     print qq(A);
-    dump;
+    CORE::dump;
     print qq(B);
 }
 PROG
+
+if ($Config{unexec}) {
+  ok(-f 'a.exe', "a.exe exists");
+  ok(-x 'a.exe', "a.exe executable");
+  is(`${PRE}a.exe`, "A", "${PRE}a.exe runs ok");
+  unlink 'a.exe';
+}
 
 fresh_perl_like(<<'PROG', qr/A(?!B\z)/, {}, "dump with label quits");
 ++$|;
@@ -89,11 +97,40 @@ if ($pid) {
 }
 else {
     print qq(A);
-    dump foo;
-    foo:
+    CORE::dump foo;
+  foo:
     print qq(B);
 }
 PROG
+
+if ($Config{unexec}) {
+  ok(-f 'a.exe', "a.exe exists");
+  ok(-x 'a.exe', "a.exe executable");
+  is(`${PRE}a.exe`, "B", "${PRE}a.exe to label runs ok");
+  unlink 'a.exe';
+}
+
+fresh_perl_like(<<'PROG', qr/A(?!B\z)/, {}, "dump with filename quits");
+++$|;
+my $pid = fork;
+die "fork: $!\n" unless defined $pid;
+if ($pid) {
+    # parent
+    waitpid($pid, 0);
+}
+else {
+    print qq(A);
+    print qq(B);
+    CORE::dump 'dumped.exe';
+}
+PROG
+
+if ($Config{unexec}) {
+  ok(-f 'dumped.exe', 'created named dumped.exe');
+  ok(-x 'dumped.exe');
+  is(`${PRE}dumped.exe`, "AB", "${PRE}dumped.exe runs ok");
+  unlink 'dumped.exe';
+}
 
 END {
   chdir $start if defined $start;
