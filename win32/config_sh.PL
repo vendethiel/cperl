@@ -267,6 +267,8 @@ else {
     $opt{nvgformat} = '"g"';
 }
 
+$opt{unexec} = 'unexw32' unless exists $opt{unexec};
+
 # change the s{GM|LOCAL}TIME_{min|max} for VS2005 (aka VC 8) and
 # VS2008 (aka VC 9) or higher (presuming that later versions will have
 # at least the range of that).

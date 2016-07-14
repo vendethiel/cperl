@@ -124,8 +124,11 @@ S_maybe_protect_ro(pTHX_ struct perl_memory_debug_header *header)
 #endif
 
 /* paranoid version of system's malloc()
-   used in my_clearenv() */
+   only to be used in my_clearenv() */
 
+#ifdef UNEXEC
+static
+#endif
 Malloc_t
 Perl_safesysmalloc(MEM_SIZE size)
 {
@@ -204,6 +207,9 @@ Perl_safesysmalloc(MEM_SIZE size)
 
 /* paranoid version of system's realloc() */
 
+#ifdef UNEXEC
+static
+#endif
 Malloc_t
 Perl_safesysrealloc(Malloc_t where,MEM_SIZE size)
 {
@@ -330,6 +336,9 @@ Perl_safesysrealloc(Malloc_t where,MEM_SIZE size)
 /* safe version of system's free()
    used in my_clearenv() */
 
+#ifdef UNEXEC
+static
+#endif
 Free_t
 Perl_safesysfree(Malloc_t where)
 {
@@ -394,6 +403,8 @@ Perl_safesysfree(Malloc_t where)
 }
 
 /* safe version of system's calloc() */
+
+#ifndef UNEXEC
 
 Malloc_t
 Perl_safesyscalloc(MEM_SIZE count, MEM_SIZE size)
@@ -486,10 +497,12 @@ Perl_safesyscalloc(MEM_SIZE count, MEM_SIZE size)
     }
 }
 
+#endif
+
 /* These must be defined when not using Perl's malloc for binary
  * compatibility */
 
-#if !defined(MYMALLOC) && !(defined(UNEXEC) && defined(PERL_DARWIN))
+#if !defined(MYMALLOC) && !defined(UNEXEC)
 
 Malloc_t Perl_malloc (MEM_SIZE nbytes)
 {
@@ -2225,7 +2238,7 @@ Perl_my_setenv(pTHX_ const char *nam, const char *val)
                 break;
         }
 
-        if (environ == PL_origenviron) {   /* need we copy environment? */
+        if (PL_do_undump || environ == PL_origenviron) {   /* need we copy environment? */
             I32 j;
             I32 max;
             char **tmpenv;
@@ -2243,7 +2256,8 @@ Perl_my_setenv(pTHX_ const char *nam, const char *val)
             environ = tmpenv;               /* tell exec where it is now */
         }
         if (!val) {
-            safesysfree(environ[i]);
+            if (!PL_do_undump)
+                safesysfree(environ[i]);
             while (environ[i]) {
                 environ[i] = environ[i+1];
                 i++;
@@ -5518,8 +5532,9 @@ Perl_my_clearenv(pTHX)
       if (environ == PL_origenviron)
         environ = (char**)safesysmalloc(sizeof(char*));
       else
-        for (i = 0; environ[i]; i++)
-          (void)safesysfree(environ[i]);
+        if (!PL_do_undump)
+          for (i = 0; environ[i]; i++)
+            (void)safesysfree(environ[i]);
     }
     environ[0] = NULL;
 #      else /* PERL_USE_SAFE_PUTENV */

@@ -557,6 +557,11 @@ DEFINES		= $(DEFINES) -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE
 DEFINES		= $(DEFINES) -D_WINSOCK_DEPRECATED_NO_WARNINGS
 !ENDIF
 
+!IF "$(UNEXEC)" != "undef"
+UNEXEC          = unexw32
+DEFINES		= $(DEFINES) -DUNEXEC=unexw32
+!ENDIF
+
 # In VS 2005 (VC++ 8.0) Microsoft changes time_t from 32-bit to
 # 64-bit, even in 32-bit mode.  It also provides the _USE_32BIT_TIME_T
 # preprocessor option to revert back to the old functionality for
@@ -814,6 +819,10 @@ MICROCORE_SRC	=		\
 		..\util.c	\
 		..\xsutils.c
 
+!IF "$(UNEXEC)" != ""
+MICROCORE_SRC	= $(MICROCORE_SRC) ..\$(UNEXEC).c ..\lastfile.c
+!ENDIF
+
 EXTRACORE_SRC	= $(EXTRACORE_SRC) perllib.c
 
 !IF "$(PERL_MALLOC)" == "define"
@@ -869,6 +878,10 @@ CORE_NOCFG_H	=		\
 		.\include\sys\errno2.h	\
 		.\include\sys\socket.h	\
 		.\win32.h
+
+!IF "$(UNEXEC)" != ""
+CORE_NOCFG_H	= $(CORE_NOCFG_H) ..\unexec.h
+!ENDIF
 
 CORE_H		= $(CORE_NOCFG_H) .\config.h ..\git_version.h
 
