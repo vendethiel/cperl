@@ -3347,9 +3347,9 @@ EXTCONST U32 PL_opargs[] = {
 	0x00001000,	/* leave */
 	0x00001100,	/* scope */
 	0x00002440,	/* enteriter */
-	0x00000400,	/* iter */
-	0x00000400,	/* iter_ary */
-	0x00000400,	/* iter_lazyiv */
+	0x00000c00,	/* iter */
+	0x00000c00,	/* iter_ary */
+	0x00000c00,	/* iter_lazyiv */
 	0x00002440,	/* enterloop */
 	0x00000800,	/* leaveloop */
 	0x00009001,	/* return */

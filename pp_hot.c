@@ -3035,7 +3035,7 @@ PP(pp_iter_lazyiv)
     } else
         ++cx->blk_loop.state_u.lazyiv.cur;
 
-    return OpFIRST(PL_op);
+    return OpOTHER(PL_op);
 }
 
 PP(pp_iter_ary)
@@ -3103,7 +3103,7 @@ PP(pp_iter_ary)
 #endif
         SvREFCNT_dec(oldsv);
 
-    return OpFIRST(PL_op);
+    return OpOTHER(PL_op);
 }
 
 PP(pp_iter)
@@ -3160,52 +3160,6 @@ PP(pp_iter)
         break;
     }
 
-#if 0
-    case CXt_LOOP_LAZYIV: /* integer increment for (1..9) */
-    {
-        IV cur = cx->blk_loop.state_u.lazyiv.cur;
-        assert(0 && "pp_iter_lazyiv instead");
-	if (UNLIKELY(cur > cx->blk_loop.state_u.lazyiv.end))
-            return NORMAL;
-
-        oldsv = *itersvp;
-	/* see NB comment above */
-	if (oldsv && LIKELY(SvREFCNT(oldsv) == 1 && !SvMAGICAL(oldsv))) {
-	    /* safe to reuse old SV */
-
-            if (    (SvFLAGS(oldsv) & (SVTYPEMASK|SVf_THINKFIRST|SVf_IVisUV))
-                 == SVt_IV)
-            {
-                /* Cheap SvIOK_only().
-                 * Assert that flags which SvIOK_only() would test or
-                 * clear can't be set, because we're SVt_IV */
-                assert(!(SvFLAGS(oldsv) &
-                    (SVf_OOK|SVf_UTF8|(SVf_OK & ~(SVf_IOK|SVp_IOK)))));
-                SvFLAGS(oldsv) |= (SVf_IOK|SVp_IOK);
-                /* SvIV_set() where sv_any points to head */
-                oldsv->sv_u.svu_iv = cur;
-
-            }
-            else
-                sv_setiv(oldsv, cur);
-	}
-	else
-	{
-	    /* we need a fresh SV every time so that loop body sees a
-	     * completely new SV for closures/references to work as they
-	     * used to */
-	    *itersvp = newSViv(cur);
-	    SvREFCNT_dec(oldsv);
-	}
-
-	if (UNLIKELY(cur == IV_MAX)) {
-	    /* Handle end of range at IV_MAX */
-	    cx->blk_loop.state_u.lazyiv.end = IV_MIN;
-	} else
-	    ++cx->blk_loop.state_u.lazyiv.cur;
-        break;
-    }
-#endif
     case CXt_LOOP_LIST: /* for (1,2,3) */
 
         assert(OPpITER_REVERSED == 2); /* so inc becomes -1 or 1 */
@@ -3219,31 +3173,6 @@ PP(pp_iter)
 
         sv = PL_stack_base[ix];
         av = NULL;
-#if 0
-        goto loop_ary_common;
-
-    case CXt_LOOP_ARY: /* for (@ary) */
-
-        assert(0 && "pp_iter_ary instead");
-        av = cx->blk_loop.state_u.ary.ary;
-        inc = 1 - (PL_op->op_private & OPpITER_REVERSED);
-        ix = (cx->blk_loop.state_u.ary.ix += inc);
-        if (UNLIKELY(inc > 0
-                        ? ix > AvFILL(av)
-                        : ix < 0)
-        )
-            return NORMAL;
-
-        if (UNLIKELY(SvRMAGICAL(av))) {
-            SV * const * const svp = av_fetch(av, ix, FALSE);
-            sv = svp ? *svp : NULL;
-        }
-        else {
-            sv = AvARRAY(av)[ix];
-        }
-      loop_ary_common:
-#endif
-
         if (UNLIKELY(cx->cx_type & CXp_FOR_LVREF)) {
             SvSetMagicSV(*itersvp, sv);
             break;
@@ -3281,22 +3210,12 @@ PP(pp_iter)
         break;
 
     default:
-	DIE(aTHX_ "panic: pp_iter, type=%u", CxTYPE(cx));
+	DIE(aTHX_ "panic: pp_iter, unhandled CXt type=%u", CxTYPE(cx));
     }
 
-#if 0
-    retsv = SV_YES;
-    if (0) {
-      retno:
-        retsv = SV_NO;
-    }
-    /* pp_enteriter should have pre-extended the stack */
-    assert(PL_stack_sp < PL_stack_max);
-    *++PL_stack_sp = retsv;
-#endif
-    /* iter is always followed by OP_AND which consumes this stack yes|no entry. 
-       here inlined. iter is now a UNOP, this being the continue case. */
-    return OpFIRST(PL_op);
+    /* iter was followed by OP_AND which consumes this stack yes|no entry. 
+       here inlined. iter is now a LOGOP, this being the continue case. */
+    return OpOTHER(PL_op);
 }
 
 /*
