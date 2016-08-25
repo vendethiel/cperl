@@ -191,6 +191,10 @@ mingw_modfl(long double x, long double *ip)
 #   define RITER_T I32
 # endif
 #endif
+/* not defined in perl5 */
+#ifndef HeKSVKEY
+#define HeKSVKEY(he) HeKLEN(he) == HEf_SVKEY
+#endif
 
 /* three extra for rounding, sign, and end of string */
 #define IVUV_MAXCHARS (sizeof (UV) * CHAR_BIT * 28 / 93 + 3)
@@ -928,7 +932,7 @@ encode_hk (pTHX_ enc_t *enc, HE *he)
 {
   encode_ch (aTHX_ enc, '"');
 
-  if (HeKLEN (he) == HEf_SVKEY)
+  if (HeKSVKEY(he))
     {
       SV *sv = HeSVKEY (he);
       STRLEN len;
