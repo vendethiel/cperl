@@ -1001,8 +1001,13 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  *	binaries, use compiler-defined macros to
  *	determine the byte order.
  */
+/* HAS_LITTLE_ENDIAN:
+ *	If defined it used the intel (reverse) byteorder. If not either
+ *      big or mixed endian.
+ */
 #if defined(MULTIARCH)
 #  ifdef __LITTLE_ENDIAN__
+#    define HAS_LITTLE_ENDIAN
 #    if LONGSIZE == 4
 #      define BYTEORDER 0x1234
 #    else
@@ -1012,6 +1017,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #    endif
 #  else
 #    ifdef __BIG_ENDIAN__
+#      undef HAS_LITTLE_ENDIAN
 #      if LONGSIZE == 4
 #        define BYTEORDER 0x4321
 #      else
@@ -1023,6 +1029,7 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #  endif
 #else
 #define BYTEORDER 0x$byteorder	/* large digits for MSB */
+#$d_little_endian	  HAS_LITTLE_ENDIAN  /**/
 #endif
 
 /* CHARBITS:
@@ -5528,6 +5535,14 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
  */
 #ifndef PERL_BUILD_DATE
 #define PERL_BUILD_DATE "$cf_time"
+#endif
+
+/* USE_HEK_BITFIELD:
+ *	This symbol, if defined, indicates that the byteorder and struct packing
+ *      works as expected and Perl can use faster HEK bitfields access.
+ */
+#ifndef USE_HEK_BITFIELD
+#$usehekbitfield	USE_HEK_BITFIELD		/**/
 #endif
 
 #endif
