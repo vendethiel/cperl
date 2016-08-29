@@ -1100,10 +1100,9 @@ S_mro_gather_and_rename(pTHX_ HV * const stashes, HV * const seen_stashes,
 	   list, meanwhile doing the equivalent of $seen{$key} = 1. */
 
 	for (; riter <= xhv->xhv_max; riter++) {
-	    entry = (HvARRAY(oldstash))[riter];
-
+            entry = AHe(HvARRAY(oldstash)[riter]);
 	    /* Iterate through the entries in this list */
-	    for(; entry; entry = HeNEXT(entry)) {
+	    HE_EACH(oldstash, entry, {
 		const char* key;
 		I32 len;
 
@@ -1165,7 +1164,7 @@ S_mro_gather_and_rename(pTHX_ HV * const stashes, HV * const seen_stashes,
 
 		    (void)hv_store(seen, key, HeUTF8(entry) ? -(I32)len : (I32)len, SV_YES, 0);
 		}
-	    }
+            })
 	}
     }
 
@@ -1176,10 +1175,9 @@ S_mro_gather_and_rename(pTHX_ HV * const stashes, HV * const seen_stashes,
 	/* Iterate through the new stash, skipping $seen{$key} items,
 	   calling mro_gather_and_rename(stashes,seen,entry,NULL, ...). */
 	for (riter=0; riter <= xhv->xhv_max; riter++) {
-	    entry = (HvARRAY(stash))[riter];
-
+            entry = AHe(HvARRAY(stash)[riter]);
 	    /* Iterate through the entries in this list */
-	    for(; entry; entry = HeNEXT(entry)) {
+	    HE_EACH(stash, entry, {
 		const char* key;
 		I32 len;
 
@@ -1242,7 +1240,7 @@ S_mro_gather_and_rename(pTHX_ HV * const stashes, HV * const seen_stashes,
                                               substash, NULL, subname);
 		    }
 		}
-	    }
+            })
 	}
     }
 }

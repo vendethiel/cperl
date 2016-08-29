@@ -9994,7 +9994,7 @@ Perl_sv_resetpvn(pTHX_ const char *s, STRLEN len, HV * const stash)
 	    todo[i] = 1;
 	}
 	for (i = 0; i <= (I32) HvMAX(stash); i++) {
-	    HE *entry = HvARRAY(stash)[i];
+	    HE *entry = AHe(HvARRAY(stash)[i]);
             HE_EACH(hv, entry, {
 		GV *gv;
 		SV *sv;
@@ -13822,7 +13822,7 @@ Perl_ptr_table_clear(pTHX_ PTR_TBL_t *const tbl)
     if (tbl && tbl->tbl_items) {
 	struct ptr_tbl_arena *arena = tbl->tbl_arena;
 
-	Zero(tbl->tbl_ary, tbl->tbl_max + 1, struct ptr_tbl_ent *);
+	Zero(tbl->tbl_ary, tbl->tbl_max + 1, PTR_TBL_ENT_t*);
 
 	while (arena) {
 	    struct ptr_tbl_arena *next = arena->next;
@@ -16006,7 +16006,7 @@ STATIC SV*
 S_find_hash_subscript(pTHX_ const HV *const hv, const SV *const val)
 {
     dVAR;
-    HE **array;
+    AHE *array;
     I32 i;
 
     PERL_ARGS_ASSERT_FIND_HASH_SUBSCRIPT;
@@ -16016,9 +16016,8 @@ S_find_hash_subscript(pTHX_ const HV *const hv, const SV *const val)
 	return NULL;
 
     array = HvARRAY(hv);
-
-    for (i = HvMAX(hv); i>=0; i--) {
-	HE *entry = array[i];
+    for (i = HvMAX(hv); i >= 0; i--) {
+	HE *entry = AHe(array[i]);
         HE_EACH(hv, entry, {
 	    if (HeVAL(entry) != val)
 		continue;

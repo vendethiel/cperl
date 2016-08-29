@@ -1147,8 +1147,10 @@ Perl_boot_core_UNIVERSAL(pTHX)
     const struct xsub_details *xsub = details;
     const struct xsub_details *end = C_ARRAY_END(details);
     /* pre-extend internals stashes to avoid splits from small */
-    hv_ksplit(gv_stashpvs("version", GV_ADD), 64);
-    hv_ksplit(gv_stashpvs("utf8", GV_ADD), 16);
+    HV *stash = gv_stashpvs("version", GV_ADD);
+    hv_ksplit(stash, 64);
+    stash = gv_stashpvs("utf8", GV_ADD);
+    hv_ksplit(stash, 16);
 
     do {
 	newXS_flags(xsub->name, xsub->xsub, file, xsub->proto, 0);
