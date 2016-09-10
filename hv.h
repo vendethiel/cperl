@@ -16,6 +16,8 @@
 /* Performance. We have good enough security measures to fight DoS hash floods. */
 /*# define PERL_PERTURB_KEYS_DISABLED*/
 # define PERL_PERTURB_KEYS_TOP
+/* array_he branch: inline hent_hash into AHE* */
+# define PERL_INLINE_HASH
 #endif
 
 #if defined(PERL_PERTURB_KEYS_DISABLED) || defined(PERL_PERTURB_KEYS_TOP)
