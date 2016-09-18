@@ -199,6 +199,7 @@ Intel*) ;; # # Is that you, Intel C++?
 	       -Wc++-compat -Wwrite-strings \
                -Wno-discarded-qualifiers -Wno-incompatible-pointer-types-discards-qualifiers \
                -Wlogical-op -Wpacked -Wdisabled-optimization -Wno-null-conversion
+               -Wconversion -Wsign-conversion -Wsign-compare -Wfloat-conversion
     do
        case " $ccflags " in
        *" $opt "*) ;; # Skip if already there.

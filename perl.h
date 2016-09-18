@@ -867,6 +867,12 @@ EXTERN_C int syscall(int, ...);
 EXTERN_C int usleep(unsigned int);
 #endif
 
+# if INTSIZE >= 4
+#  define U32_CONST(x) ((U32)x##U)
+# else
+#  define U32_CONST(x) ((U32)x##UL)
+# endif
+
 #ifdef PERL_CORE
 
 /* macros for correct constant construction */
@@ -874,12 +880,6 @@ EXTERN_C int usleep(unsigned int);
 #  define U16_CONST(x) ((U16)x##U)
 # else
 #  define U16_CONST(x) ((U16)x##UL)
-# endif
-
-# if INTSIZE >= 4
-#  define U32_CONST(x) ((U32)x##U)
-# else
-#  define U32_CONST(x) ((U32)x##UL)
 # endif
 
 # ifdef HAS_QUAD
@@ -1615,7 +1615,10 @@ EXTERN_C char *crypt(const char *, const char *);
  * that should be true only if the snprintf()/vsnprintf() are true
  * to the standard. */
 
-#define PERL_SNPRINTF_CHECK(len, max, api) STMT_START { if ((max) > 0 && (Size_t)len >= (max)) Perl_croak_nocontext("panic: %s buffer overflow", STRINGIFY(api)); } STMT_END
+#define PERL_SNPRINTF_CHECK(len, max, api) STMT_START {                 \
+        if (UNLIKELY((max) > 0 && (Size_t)len >= (max)))                \
+            Perl_croak_nocontext("panic: %s buffer overflow", STRINGIFY(api)); \
+        } STMT_END
 
 #ifdef USE_QUADMATH
 #  define my_snprintf Perl_my_snprintf
@@ -5639,7 +5642,7 @@ typedef enum {
 #define HINT_BLOCK_SCOPE	0x00000100
 #define HINT_STRICT_SUBS	0x00000200 /* strict pragma */
 #define HINT_STRICT_VARS	0x00000400 /* strict pragma */
-#define HINT_UNI_8_BIT		0x00000800 /* unicode_strings feature */
+#define HINT_UNI_8_BIT		0x00000800U /* unicode_strings feature */
 
 /* The HINT_NEW_* constants are used by the overload pragma */
 #define HINT_NEW_INTEGER	0x00001000
@@ -5661,7 +5664,7 @@ typedef enum {
 
 #define HINT_RE_FLAGS		0x02000000 /* re '/xism' pragma */
 
-#define HINT_FEATURE_MASK	0x1c000000 /* 3 bits for feature bundles */
+#define HINT_FEATURE_MASK	U32_CONST(0x1c000000) /* 3 bits for feature bundles */
 
 				/* Note: Used for HINT_M_VMSISH_*,
 				   currently defined by vms/vmsish.h:

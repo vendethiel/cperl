@@ -616,6 +616,7 @@ least an C<UNOP>.
 #  define my(o)	my_attrs((o), NULL)
 #  define OpTYPE_set(o,type) \
     STMT_START {				\
+        assert(type < 0x200);                   \
 	o->op_type = (OPCODE)type;		\
 	o->op_ppaddr = PL_ppaddr[type];		\
     } STMT_END

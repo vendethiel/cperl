@@ -7530,6 +7530,7 @@ Perl_sv_pos_u2b_flags(pTHX_ SV *const sv, STRLEN uoffset, STRLEN *const lenp,
     STRLEN boffset;
 
     PERL_ARGS_ASSERT_SV_POS_U2B_FLAGS;
+    PERL_SNPRINTF_CHECK(uoffset, SSize_t_MAX, sv_pos_u2b_flags);
 
     start = (U8*)SvPV_flags(sv, len, flags);
     if (len) {
@@ -7544,8 +7545,9 @@ Perl_sv_pos_u2b_flags(pTHX_ SV *const sv, STRLEN uoffset, STRLEN *const lenp,
 	    const STRLEN uoffset2 = uoffset + *lenp;
 	    const STRLEN boffset2
 		= sv_pos_u2b_cached(sv, &mg, start, send, uoffset2,
-				      uoffset, boffset) - boffset;
+				    uoffset, boffset) - boffset;
 
+            PERL_SNPRINTF_CHECK(uoffset2, SSize_t_MAX, sv_pos_u2b_flags);
 	    *lenp = boffset2;
 	}
     } else {
