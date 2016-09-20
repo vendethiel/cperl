@@ -3115,16 +3115,11 @@ static int store_lhash(pTHX_ stcxt_t *cxt, HV *hv, unsigned char hash_flags)
     cxt->recur_sv = (SV*)hv;
 
     array = HvARRAY(hv);
-    for (i = 0; i <= (Size_t)HvMAX(hv); i++) {
-        HE* entry = array[i];
-        if (!entry) continue;
+    HE_EACH(hv, entry, {
         if ((ret = store_hentry(aTHX_ cxt, hv, ix++, entry, hash_flags)))
             return ret;
-        HE_EACH(hv, entry, {
-                if ((ret = store_hentry(aTHX_ cxt, hv, ix++, entry, hash_flags)))
-                    return ret;
-        })
-    }
+    })
+
     if (cxt->entry && cxt->recur_sv == (SV*)hv && cxt->recur_depth > 0) {
         TRACEME(("recur_depth --%u", cxt->recur_depth));
         --cxt->recur_depth;
