@@ -861,6 +861,7 @@ AMpR	|bool	|_is_utf8_mark		|NN const U8 *p
 AMpR	|bool	|_is_decomposed_string	|NN const U8 *p|STRLEN len
 : Used in perly.y
 p	|OP*	|jmaybe			|NN OP *o
+p	|SSize_t|num_listexpr   	|NN OP* expr
 : Used in pp.c 
 pP	|I32	|keyword		|NN const char *name|I32 len|bool all_keywords
 #if defined(PERL_IN_OP_C)
@@ -892,6 +893,7 @@ AMpd	|OP*	|parse_barestmt	|U32 flags
 AMpd	|SV*	|parse_label	|U32 flags
 AMpd	|OP*	|parse_fullstmt	|U32 flags
 AMpd	|OP*	|parse_stmtseq	|U32 flags
+
 : Used in various files
 Apd	|void	|op_null	|NN OP* o
 : FIXME. Used by Data::Alias
