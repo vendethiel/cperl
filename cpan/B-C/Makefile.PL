@@ -116,7 +116,8 @@ sub write_b_c_config {
     for my $s (qw(archname cc ccflags
                   d_c99_variadic_macros d_dlopen d_isinf d_isnan d_longdbl dlext
                   i_dlfcn ivdformat ivsize longsize mad nvgformat ptrsize static_ext
-                  usecperl usedl useithreads uselongdouble usemultiplicity usemymalloc uvuformat))
+                  usecperl usedl useithreads uselongdouble usemultiplicity usemymalloc
+                  uvuformat uvxformat))
     {
         if ($CORE) {
             my $v = $Config::Config{$s};
