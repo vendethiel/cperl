@@ -10,14 +10,15 @@ use vars qw(@ISA @EXPORT $VERSION
 use strict;
 
 # This is not a dual-life module, so no need for development version numbers
-$VERSION = '1.34'; # cperl variant, but cannot use a 'c' here
+$VERSION = '1.34c'; # cperl variant, but cannot use a 'c' here
+$VERSION =~ s/c$//;
 
 @ISA = qw(Exporter);
 @EXPORT = qw(&xsinit &ldopts 
 	     &ccopts &ccflags &ccdlflags &perl_inc
 	     &xsi_header &xsi_protos &xsi_body);
 
-$Verbose = 0;
+$Verbose = ($ENV{TEST_VERBOSE} and $ENV{TEST_VERBOSE} >= 2) ? 1 : 0;
 $lib_ext = $Config{lib_ext} || '.a';
 
 sub is_cmd { $0 eq '-e' }
@@ -221,7 +222,7 @@ sub ldopts {
 	    last;
 	}
     }
-    #print STDERR "\@potential_libs = @potential_libs\n";
+    print STDERR "\@potential_libs = @potential_libs\n" if $Verbose;
 
     my $libperl;
     if ($^O eq 'MSWin32') {
@@ -233,7 +234,10 @@ sub ldopts {
 	$libperl = (grep(/^-l\w*perl\w*$/, @link_args))[0]
 	    || ($Config{libperl} =~ /^lib(\w+)(\Q$lib_ext\E|\.\Q$Config{dlext}\E)$/
 		? "-l$1" : '')
-		|| "-lperl";
+            || "-lperl";
+        if ($Config{usecperl} and $Config{useshrplib} and $libperl eq '-lperl') {
+            $libperl = '-lcperl';
+        }
     }
 
     my $lpath = File::Spec->catdir($Config{archlibexp}, 'CORE');
