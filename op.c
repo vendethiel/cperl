@@ -8523,12 +8523,14 @@ Perl_newFOROP(pTHX_ I32 flags, OP *sv, OP *expr, OP *block, OP *cont)
             if (UNLIKELY(SvIV(rightsv) < SvIV(leftsv)))
                 DIE(aTHX_ "Invalid for range iterator (%" IVdf " .. %" IVdf ")",
                     SvIV(leftsv), SvIV(rightsv));
+#ifdef DEBUGGING
             /* TODO: unroll loop for small constant ranges, if the body is not too big */
             if (SvIV(rightsv)-SvIV(leftsv) <= PERL_MAX_UNROLL_LOOP_COUNT) {
                 DEBUG_kv(Perl_deb(aTHX_ "TODO unroll loop (%" IVdf "..%" IVdf ")\n",
                                   SvIV(leftsv), SvIV(rightsv)));
                 /* TODO easy with op_clone_oplist from feature/gh23-inline-subs */
             }
+#endif
             optype = OP_ITER_LAZYIV;
         }
 	range->op_flags &= ~OPf_KIDS;
@@ -16672,12 +16674,14 @@ S_peep_leaveloop(pTHX_ OP* leave, OP* from, OP* to)
     if (IS_CONST_OP(from) && IS_CONST_OP(to)
         && SvIOK(fromsv = cSVOPx_sv(from)) && SvIOK(tosv = cSVOPx_sv(to)))
     {
+#ifdef DEBUGGING
         /* Unrolling is easier in newFOROP? */
         if (SvIV(tosv)-SvIV(fromsv) <= PERL_MAX_UNROLL_LOOP_COUNT) {
             DEBUG_kv(Perl_deb(aTHX_ "rpeep: possibly unroll loop (%" IVdf "..%" IVdf ")\n",
                               SvIV(fromsv), SvIV(tosv)));
             /* TODO op_clone_oplist from feature/gh23-inline-subs */
         }
+#endif
         /* 2. Check all aelem if can aelem_u */
         maxto = SvIV(tosv);
     }
