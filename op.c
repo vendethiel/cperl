@@ -8332,6 +8332,7 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
     LISTOP *listop;
     OP *o;
     U8 loopflags = 0;
+    bool expr_is_iter = FALSE;
 
     PERL_UNUSED_ARG(debuggable);
 
@@ -8373,6 +8374,7 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
     }
     if (expr) {
 	OP * const unstack = newOP(OP_UNSTACK, 0);
+        expr_is_iter = OP_IS_ITER(expr->op_type);
 	if (!next)
 	    next = unstack;
 	cont = op_append_elem(OP_LINESEQ, cont, unstack);
@@ -8385,7 +8387,7 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
 
     if (expr) {
 	scalar((OP*)listop);
-        if (!OP_IS_ITER(expr->op_type)) {
+        if (!expr_is_iter) {
             o = new_logop(OP_AND, 0, &expr, (OP**)&listop);
             if (o == expr && IS_CONST_OP(o) && !SvTRUE(cSVOPo->op_sv)) {
                 op_free((OP*)loop);
@@ -8394,10 +8396,8 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
             OpLAST(listop)->op_next = redo;
         } else {
             o = scalar(expr);
-            OpOTHER(o) = redo; /* continue */
+            OpOTHER(o) = redo; /* continue  with block */
             o->op_flags &= ~OPf_KIDS;
-            /*OpFIRST(o) = NULL; */ /* fixup: leaveloop below */
-            /*o->op_next = o;*/
             OpLAST(listop)->op_next = o;
         }
     }
@@ -8417,7 +8417,7 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
     loop->op_redoop = redo;
     loop->op_lastop = o;
     o->op_private |= loopflags;
-    if (OP_IS_ITER(expr->op_type)) {
+    if (expr_is_iter) {
         expr->op_next = OpFIRST(expr) = o;
     }
 
@@ -16686,6 +16686,8 @@ aelem_u.
 
 3) with static ranges and shaped arrays, can possibly optimize to aelem_u
 
+Returns TRUE when some op was changed.
+
 =cut
 */
 static bool
@@ -16693,6 +16695,7 @@ S_peep_leaveloop(pTHX_ BINOP* leave, OP* from, OP* to)
 {
     SV *fromsv, *tosv;
     IV maxto = 0;
+    bool changed = FALSE;
     PERL_ARGS_ASSERT_PEEP_LEAVELOOP;
 
     if (IS_CONST_OP(from) && IS_CONST_OP(to)
@@ -16716,7 +16719,7 @@ S_peep_leaveloop(pTHX_ BINOP* leave, OP* from, OP* to)
         OP *loop, *iter, *body, *o2;
         SV *idx = MUTABLE_SV(PL_defgv);
 #ifdef DEBUGGING
-        const char *aname = !kid ? ""
+        const char *aname = !kid ? "*"
             : IS_TYPE(kid, GV) ? GvNAME_get(kSVOP_sv)
             : IS_TYPE(kid, PADAV) ? PAD_COMPNAME_PV(kid->op_targ)
             : "";
@@ -16750,7 +16753,7 @@ S_peep_leaveloop(pTHX_ BINOP* leave, OP* from, OP* to)
                 }
             }
         }
-        DEBUG_kv(Perl_deb(aTHX_ "rpeep: omit loop bounds checks (from..arylen) for %s[%s]\n",
+        DEBUG_kv(Perl_deb(aTHX_ "rpeep: omit loop bounds checks (from..arylen) for %s[%s]...\n",
                           aname, iname));
         iter = OpNEXT(loop);
         body = OpOTHER(OpNEXT(iter));
@@ -16784,6 +16787,7 @@ S_peep_leaveloop(pTHX_ BINOP* leave, OP* from, OP* to)
                         kid ? aname : PAD_COMPNAME_PV(OpFIRST(o2)->op_targ),
                         iname));
                     OpTYPE_set(o2, OP_AELEM_U);
+                    changed = TRUE;
                 } else if (!o2->op_targ && idx) { /* or same gv index */
                     OP* ixop = OpLAST(o2);
                     if (OP_TYPE_IS(ixop, OP_RV2SV)
@@ -16791,6 +16795,7 @@ S_peep_leaveloop(pTHX_ BINOP* leave, OP* from, OP* to)
                         DEBUG_k(Perl_deb(aTHX_ "loop oob: aelem %s[$%s] => aelem_u\n",
                                          aname, iname));
                         OpTYPE_set(o2, OP_AELEM_U);
+                        changed = TRUE;
                     }
                 }
             } else if (type == OP_MULTIDEREF && !maxto) {
@@ -16799,11 +16804,13 @@ S_peep_leaveloop(pTHX_ BINOP* leave, OP* from, OP* to)
                 if (loop->op_targ && mderef_uoob_targ(o2, loop->op_targ)) {
                     DEBUG_k(Perl_deb(aTHX_ "loop oob: multideref %s[my %s] => MDEREF_INDEX_uoob\n",
                                      aname, iname));
+                    changed = TRUE;
 #ifndef USE_ITHREADS
                 } else if (!loop->op_targ
                            && mderef_uoob_gvsv(o2, idx)) {
                     DEBUG_k(Perl_deb(aTHX_ "loop oob: multideref %s[$%s] =>  MDEREF_INDEX_uoob\n",
                                      aname, iname));
+                    changed = TRUE;
 #endif
                 }
             }
@@ -16816,12 +16823,13 @@ S_peep_leaveloop(pTHX_ BINOP* leave, OP* from, OP* to)
                 DEBUG_k(Perl_deb(aTHX_ "loop oob: aelemfast_lex %s[%s] => aelemfast_lex_u\n",
                                  aname, iname));
                 OpTYPE_set(o2, OP_AELEMFAST_LEX_U);
+                changed = TRUE;
             }
 #endif
         }
-        return TRUE;
+        return changed;
     }
-    return FALSE;
+    return changed;
 }
 
 /*
@@ -17328,33 +17336,16 @@ Perl_rpeep(pTHX_ OP *o)
             */
 	    if (OpSIBLING(o) && OP_TYPE_IS(OpSIBLING(o), OP_LEAVELOOP)) {
                 BINOP *leave = (BINOP*)OpSIBLING(o);
-                OP *next = S_op_next_nn(o);
-                OP *from, *to;
-                o->op_opt = 0;
-                /* XXX hack the wrong linklist */
-                /*if (!next) {
-                    LOOP* loop = (LOOP*)((UNOP*)leave)->op_first;
-                    o->op_next = OpSIBLING(loop->op_first);
-                    next = o->op_next;
-                    from = OpSIBLING(next);
-                } else */
-                if (OP_IS_ITER(next->op_type)) { /* fixup iter hack */
-                    LOOP* loop = (LOOP*)(leave->op_first);
-                    LINKLIST(OpSIBLING(loop->op_first)); /* relink the range */
-                    o->op_next = ((UNOP*)OpSIBLING(loop->op_first))->op_first; /* nextstate -> pushmark */
-                    loop->op_next = next; /* enteriter -> iter */
-                    from = OpSIBLING(o->op_next);
-                    OpSIBLING(loop->op_first)->op_next = loop->op_last;
-                } else
-                    from = OpSIBLING(next);
-                to = OpSIBLING(from);
-                if (next != o && oldop)
-                    oldop->op_next = o;
+                OP *next = op_linklist(((UNOP*)leave->op_first)->op_first);
+                OP *from = OpSIBLING(next);
+                OP *to   = OpSIBLING(from);
 
-                if (!to)
+                if (!to || peep_leaveloop(leave, from, to)) {
+                    if (next != o && oldop)
+                        oldop->op_next = o;
+                    o->op_opt = 0;
                     break;
-                if (S_peep_leaveloop(aTHX_ leave, from, to))
-                    break;
+                }
             }
 
 	    /* Two NEXTSTATEs in a row serve no purpose. Except if they happen
