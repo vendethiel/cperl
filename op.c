@@ -8378,6 +8378,7 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
 	if (!next)
 	    next = unstack;
 	cont = op_append_elem(OP_LINESEQ, cont, unstack);
+        expr_is_iter = OP_IS_ITER(expr->op_type);
     }
 
     assert(block);
@@ -8393,12 +8394,16 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
                 op_free((OP*)loop);
                 return expr;		/* listop already freed by new_logop */
             }
-            OpLAST(listop)->op_next = redo;
+            if (listop)
+                OpLAST(listop)->op_next =
+                    (o == (OP*)listop ? redo : LINKLIST(o));
+            /*listop->op_last->op_next = redo;*/
         } else {
             o = scalar(expr);
-            OpOTHER(o) = redo; /* continue  with block */
-            o->op_flags &= ~OPf_KIDS;
-            OpLAST(listop)->op_next = o;
+            OpFIRST(o) = newOP(OP_NULL, 0); /* nasty dummy */
+            OpOTHER(o) = listop->op_next;   /* continue with block, skip lineseq */
+            OpMORESIB_set(OpFIRST(o), (OP*)listop);
+            OpLAST(listop)->op_next = o;    /* -> iter */
         }
     }
     else
@@ -8408,7 +8413,6 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
 	NewOp(1101,loop,1,LOOP);
         OpTYPE_set(loop, OP_ENTERLOOP);
         loop->op_flags = OPf_KIDS;
-	/*loop->op_private = 0;*/
 	loop->op_next = (OP*)loop;
     }
 
@@ -8418,15 +8422,20 @@ Perl_newWHILEOP(pTHX_ I32 flags, I32 debuggable PERL_UNUSED_DECL, LOOP *loop,
     loop->op_lastop = o;
     o->op_private |= loopflags;
     if (expr_is_iter) {
-        expr->op_next = OpFIRST(expr) = o;
+        expr->op_next = o;
     }
 
     if (next) {
 	loop->op_nextop = next;
-        if (OP_IS_ITER(expr->op_type)) {
-            OpFIRST(loop)->op_next = LINKLIST(OpSIBLING(OpFIRST(loop)));
-            OpLAST(loop)->op_next = (OP*)loop;
-            loop->op_next = expr;
+        if (expr_is_iter) {
+            next = OpSIBLING(OpFIRST(loop)); /* from */
+            OpFIRST(loop)->op_next = LINKLIST(next);
+            /* relink last range-expr to loop var */
+            OpLAST(next)->op_next = OpLAST(loop);
+            OpLAST(loop)->op_next = (OP*)loop; /* and loop var back to loop */
+            loop->op_next = expr; /* and loop to iter, but this
+                                     link is later destroyed by linklist
+                                     to the sibling. */
         }
     }
     else {
@@ -17336,15 +17345,26 @@ Perl_rpeep(pTHX_ OP *o)
             */
 	    if (OpSIBLING(o) && OP_TYPE_IS(OpSIBLING(o), OP_LEAVELOOP)) {
                 BINOP *leave = (BINOP*)OpSIBLING(o);
-                OP *next = op_linklist(((UNOP*)leave->op_first)->op_first);
-                OP *from = OpSIBLING(next);
-                OP *to   = OpSIBLING(from);
+                LISTOP *enter = (LISTOP*)leave->op_first;
+                o->op_opt = 0; /* continue */
+                if (enter->op_first) {
+                    OP *next = LINKLIST(enter->op_first);
+                    OP *from = OpSIBLING(next);
+                    OP *to   = OpSIBLING(from);
+                    /* fixup/relink LOGOP entry, broken by linklist */
+                    if (enter->op_type == OP_ENTERITER) {
+                        if (OP_IS_ITER(OpSIBLING(enter)->op_type)) {
+                            enter->op_next = OpSIBLING(enter);
+                            o->op_next = next;
+                        }
+                    }
 
-                if (!to || peep_leaveloop(leave, from, to)) {
-                    if (next != o && oldop)
-                        oldop->op_next = o;
-                    o->op_opt = 0;
-                    break;
+                    if (!to) {
+                        if (next != o && oldop)
+                            oldop->op_next = o;
+                        break;
+                    }
+                    (void)peep_leaveloop(leave, from, to);
                 }
             }
 
