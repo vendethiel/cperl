@@ -9275,7 +9275,7 @@ If C<last> == NULL, clones the whole sub (i.e. tree), otherwise until C<last>.
 Relinks all ops inside this list, but not the ones outside.
 
 In the first pass visit and store all op_next pointers, and
-store all the locations of the to be fixedup other pointers,
+store all the locations of the to be fixed up other pointers,
 in the 2nd pass all pointers inside the graph are known, and
 fixup the missing other pointers.
 
@@ -9421,13 +9421,15 @@ S_op_clone_sv(OP* o) {
 }
 
 /* cv_do_inline needs to translate the args,
- * splice inlined ENTERSUB into the current body.
+ *   o:    pushmark
+ *   cvop: entersub
+ * Splice inlined ENTERSUB into the current body.
  * METHOD should not arrive here, neither $obj->method.
  * handle args: shift, = @_ or just accept SIGNATURED subs with PERL_FAKE_SIGNATURE.
  * with a OP_SIGNATURE it is easier. without need to populate @_.
  * if arg is call-by-value make a copy.
  * adjust or add targs,
- * with local need to add ENTER/LEAVE,
+ * with local or eval{} or caller, entersub,  ... need to add ENTER/LEAVE,
  * skip ENTER/LEAVE if certain ops are absent
  *
  * $lhs = call(...); => $lhs = do {...inlined...};
@@ -9551,11 +9553,22 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             seen_logop = TRUE;
         if (OP_TYPE_IS(o->op_next, OP_LEAVESUB)) {
             if (with_enter_leave) {
+                OP *kid;
                 o = o->op_next;
                 OpTYPE_set(o, OP_LEAVE);
                 /* keep the LEAVESUB context op_flags: OPf_SPECIAL|OPf_WANT */
                 o->op_private &= ~OPpARG1_MASK; /* keep OPpREFCOUNTED */
                 o->op_private |= OPpLEAVE_SP;  /* keep SP */
+                /* TODO: set OpLAST */
+                for (kid = OpFIRST(o); kid; kid = OpSIBLING(kid)) {
+                    if (!OpHAS_SIBLING(kid)) {
+                        OpLAST(o) = kid;
+#ifdef PERL_OP_PARENT
+                        kid->op_sibparent = o;
+#endif
+                        break;
+                    }
+                }
             } else {
                 OpFIRST(o) = NULL;
                 o->op_next->op_flags &= ~OPf_KIDS; /* keep em */
@@ -9615,7 +9628,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 DEBUG_k(deb("inline: optimize pop => %d arg by %s\n", ix,
                              (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
                              ? "ref":"value"));
-                o = (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
+                o = (o->op_flags & OPf_MOD && ISNT_TYPE(o, CONST))
                     ? S_op_clone_sv(inargs[ix]) : inargs[ix];
                 o->op_next = prev->op_next->op_next;
                 prev->op_next = o;
