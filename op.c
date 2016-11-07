@@ -276,7 +276,7 @@ Returns the next non-NULL op, skipping all NULL ops in the chain.
 PERL_STATIC_INLINE OP*
 S_op_next_nn(OP* o) {
     PERL_ARGS_ASSERT_OP_NEXT_NN;
-    while(o->op_next && OP_TYPE_IS_NN(o->op_next, OP_NULL))
+    while(o->op_next && IS_NULL_OP(o->op_next))
         o = o->op_next;
     return o->op_next;
 }
@@ -2257,8 +2257,7 @@ Perl_scalarvoid(pTHX_ OP *arg)
         want = o->op_flags & OPf_WANT;
         if ((want && want != OPf_WANT_SCALAR)
             || (PL_parser && PL_parser->error_count)
-            || OP_TYPE_IS_NN(o, OP_RETURN) || OP_TYPE_IS_NN(o, OP_REQUIRE)
-            || OP_TYPE_IS_NN(o, OP_LEAVEWHEN))
+            || IS_TYPE(o, RETURN) || IS_TYPE(o, REQUIRE) || IS_TYPE(o, LEAVEWHEN))
         {
             continue;
         }
@@ -3097,10 +3096,10 @@ S_maybe_op_signature(pTHX_ CV *cv, OP *o)
      */
 
     kid = OpLAST(aassign);
-    if (!kid || OP_TYPE_ISNT(kid, OP_NULL))
+    if (!kid || ISNT_TYPE(kid, NULL))
         return;
     kid = OpFIRST(kid);
-    if (!kid || OP_TYPE_ISNT(kid, OP_PUSHMARK))
+    if (!kid || ISNT_TYPE(kid, PUSHMARK))
         return;
     kid = first_padop = OpSIBLING(kid);
 
@@ -4892,7 +4891,7 @@ Perl_bind_match(pTHX_ I32 type, OP *left, OP *right)
     ismatchop = (rtype == OP_MATCH ||
 		 rtype == OP_SUBST ||
 		 rtype == OP_TRANS || rtype == OP_TRANSR)
-	     && !(right->op_flags & OPf_SPECIAL);
+	     && !OpSPECIAL(right);
     if (ismatchop && right->op_private & OPpTARGET_MY) {
 	right->op_targ = 0;
 	right->op_private &= ~OPpTARGET_MY;
@@ -4912,7 +4911,7 @@ Perl_bind_match(pTHX_ I32 type, OP *left, OP *right)
 	    ! (rtype == OP_SUBST &&
 	       (cPMOPx(right)->op_pmflags & PMf_NONDESTRUCT)))
 		left = op_lvalue(left, rtype);
-	    if (OP_TYPE_IS_NN(right, OP_TRANS) || OP_TYPE_IS_NN(right, OP_TRANSR))
+	    if (rtype == OP_TRANS || rtype == OP_TRANSR)
 		o = newBINOP(OP_NULL, OPf_STACKED, scalar(left), right);
 	    else
 		o = op_prepend_elem(rtype, scalar(left), right);
@@ -5187,7 +5186,7 @@ Perl_newPROG(pTHX_ OP *o)
 	PL_savestack_ix = i;
     }
     else {
-	if (OP_TYPE_IS_NN(o, OP_LINESEQ) && OP_TYPE_IS(OpFIRST(o), OP_STUB))
+	if (IS_TYPE(o, LINESEQ) && OP_TYPE_IS(OpFIRST(o), OP_STUB))
         {
             /* This block is entered if nothing is compiled for the main
                program. This will be the case for an genuinely empty main
@@ -9183,9 +9182,9 @@ S_op_const_sv(pTHX_ const OP *o, CV *compcv, bool allow_lex)
  */
 
 static OP*
-S_op_fixup(OP *old, OP *newop, U32 init) {
+S_op_fixup(pTHX_ OP *old, OP *newop, U32 init) {
     static HV* cache = NULL;     /* { old => newop } */
-    U32 hash = INT2PTR(U32,((char*)old))>>4; /* not a good hash but enough for us,
+    U32 hash = INT2PTR(U32,(char*)old)>>4; /* not a good hash but enough for us,
                                                 OP* are unique during clone */
     if (!cache || (init == 1)) {
         if (cache) { /* sv_clear(cache); oops, the values are no SV's, the keys no char* */
@@ -9296,11 +9295,11 @@ Perl_op_clone_oplist(pTHX_ OP* o, OP* last, bool init) {
     OP *clone = NULL, *prev = NULL, * first = NULL;
     int pass2;
 
-    S_op_fixup(NULL, NULL, init?1:0); /* init the fixup cache */
+    op_fixup(NULL, NULL, init?1:0); /* init the fixup cache */
 
 #define FIXUP(oa,field)                                                 \
     if (((oa*)o)->op_##field)                                           \
-        S_op_fixup(((oa*)o)->op_##field, ((oa*)clone)->op_##field, pass2+2)
+        op_fixup(((oa*)o)->op_##field, ((oa*)clone)->op_##field, pass2+2)
 
 #define OPCLONE(oa)                             \
     if (!pass2) {                               \
@@ -9311,12 +9310,12 @@ Perl_op_clone_oplist(pTHX_ OP* o, OP* last, bool init) {
         } else {                                \
             memcpy(clone, o, sizeof(oa));       \
         }                                       \
-        S_op_fixup(o, clone, 0);                \
+        op_fixup(o, clone, 0);                \
     } else {                                    \
-        clone = S_op_fixup(o, NULL, 4);         \
+        clone = op_fixup(o, NULL, 4);         \
     }                                           \
     if (o->_OP_SIBPARENT_FIELDNAME)             \
-        S_op_fixup(o->_OP_SIBPARENT_FIELDNAME, clone->_OP_SIBPARENT_FIELDNAME, pass2+2)
+        op_fixup(o->_OP_SIBPARENT_FIELDNAME, clone->_OP_SIBPARENT_FIELDNAME, pass2+2)
 
     /* first pass:  fixup and record all the next pointers, in exec order.
        second pass: the rest first, sibling, last, ... all pointers are now known */
@@ -9447,7 +9446,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     bool optim_args = TRUE;
     assert(o); /* the pushmark */
     assert(cv);
-    assert(OP_TYPE_IS(o, OP_PUSHMARK));
+    assert(IS_TYPE(o, PUSHMARK));
     assert(OP_TYPE_IS(cvop, OP_ENTERSUB));
 
     /* handle optional args:
@@ -9558,7 +9557,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 o->op_private &= ~OPpARG1_MASK; /* keep OPpREFCOUNTED */
                 o->op_private |= OPpLEAVE_SP;  /* keep SP */
             } else {
-                cUNOPx(o->op_next)->op_first = NULL;
+                OpFIRST(o) = NULL;
                 o->op_next->op_flags &= ~OPf_KIDS; /* keep em */
                 op_free(o->op_next);
             }
@@ -9587,7 +9586,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 optim_args = FALSE;
                 DEBUG_kv(deb("inline: TODO copy @_\n"));
             }
-            else if (o->op_flags & OPf_SPECIAL && type == OP_SHIFT) {
+            else if (OpSPECIAL(o) && type == OP_SHIFT) {
                 if (seen_logop || j >= args) {
                     optim_args = FALSE;
                     o = prev;
@@ -9596,15 +9595,15 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                     continue;
                 }
                 DEBUG_k(deb("inline: optimize shift => %d arg by %s\n", j,
-                             (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
+                            (o->op_flags & OPf_MOD && ISNT_TYPE(o, CONST))
                              ? "ref":"value"));
                 /* do not copy a literal (const) arg */
-                o = (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
+                o = (o->op_flags & OPf_MOD && ISNT_TYPE(o, CONST))
                     ? S_op_clone_sv(inargs[j++]) : inargs[j++];
                 o->op_next = prev->op_next->op_next;
                 prev->op_next = o;
             }
-            else if (o->op_flags & OPf_SPECIAL && type == OP_POP) {
+            else if (OpSPECIAL(o) && type == OP_POP) {
                 int ix = args - j;
                 if (seen_logop || j >= args) {
                     optim_args = FALSE;
@@ -9705,7 +9704,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             firstop->op_next = o;
         }
         OpTYPE_set(o, OP_ENTER);
-        cUNOPo->op_first = NULL;
+        OpFIRST(o) = NULL;
         o->op_flags = o->op_private = 0;
         o->op_next = o->op_sibling = CvSTART(cv);
     } else { /* no leavesub or cvop->op_next == NULL */
@@ -18121,15 +18120,15 @@ Perl_rpeep(pTHX_ OP *o)
 #ifdef PERL_FREE_NULLOPS
                         for (; o2 && OP_TYPE_IS(o2->op_next, OP_NULL) && i<8; i++) {
                             OP* on = o2->op_next;
-                            if (OP_TYPE_IS(on, OP_NULL)) {
+                            if (on && IS_TYPE(on, NULL)) {
                                 OP* tmp = on->op_next;
                                 DEBUG_k(j++);
                                 /* XXX fixup kids and siblings also? */
-                                if (o2->op_sibling == on)
+                                if (OpSIBLING(o2) == on)
                                     o2->op_sibling = tmp;
-                                if (on->op_flags & OPf_KIDS) {
-                                    if (cUNOPx(on)->op_first == on)
-                                        cUNOPx(on)->op_first = tmp;
+                                if (OpKIDS(on)) {
+                                    if (OpFIRST(on) == on)
+                                        OpFIRST(on) = tmp;
                                 }
                                 op_free(on);
                                 o2->op_next = tmp;
