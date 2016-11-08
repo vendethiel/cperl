@@ -462,6 +462,8 @@ Perl_sv_peek(pTHX_ SV *sv)
                        : "");
 	goto finish;
     } else if (type < SVt_LAST) {
+        if (SvSPOK(sv))
+            sv_catpvs(t, "S");
 	sv_catpv(t, svshorttypenames[type]);
 
 	if (type == SVt_NULL)
@@ -482,9 +484,12 @@ Perl_sv_peek(pTHX_ SV *sv)
 		SvOOK_offset(sv, delta);
 		Perl_sv_catpvf(aTHX_ t, "[%s]",
                     pv_display(tmp, SvPVX_const(sv)-delta, delta, 0, 127));
-	    }
-	    Perl_sv_catpvf(aTHX_ t, "%s)",
-                pv_display(tmp, SvPVX_const(sv), SvCUR(sv), SvLEN(sv), 127));
+	    } else if (SvSPOK(sv)) {
+                Perl_sv_catpvf(aTHX_ t, "%s)", SvSPVX(sv));
+            } else {
+                Perl_sv_catpvf(aTHX_ t, "%s)",
+                    pv_display(tmp, SvPVX_const(sv), SvCUR(sv), SvLEN(sv), 127));
+            }
 	    if (SvUTF8(sv))
 		Perl_sv_catpvf(aTHX_ t, " [UTF8 \"%s\"]",
 		    sv_uni_display(tmp, sv, 6 * SvCUR(sv), UNI_DISPLAY_QQ));

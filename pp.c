@@ -2080,9 +2080,9 @@ PP(pp_repeat)
 	    sv_setsv_nomg(TARG, tmpstr);
 	SvPV_force_nomg(TARG, len);
 	isutf = DO_UTF8(TARG);
-        if (UNLIKELY(is_negative || !count))
+        if (UNLIKELY(is_negative || !count)) {
             SvCUR_set(TARG, 0);
-	else if (count > 1) {
+	} else if (count > 1) {
             STRLEN max;
 
             if (   len > (MEM_SIZE_MAX-1) / (UV)count /* max would overflow */

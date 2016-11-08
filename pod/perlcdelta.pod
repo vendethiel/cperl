@@ -340,6 +340,31 @@ The lexer F<toke.c> is now guaranteed to work on a C<linestr> buffer SV with
 minimal PTRSIZE (4 or 8 byte) length, which enables to use fast word-wise comparison
 memcmp builtins. cperl only.
 
+=item *
+
+A C<SVt_PV> ("string type") can now be a new bodyless B<SPV> ("small
+pointer value"), similar to IV and NV. With a length smaller than the
+wordsize and no magic and not-blessed nor dual-lifed, strings are now
+stored in the PV pointer itself and not on the heap elsewhere.
+The max. SPV lengths are 7 on 64bit and 3 on 32bit, and NUL characters
+are not allowed, since the length is calculated dynamically via C<strlen()>.
+
+Allowed flags are C<SVs_TEMP> and C<SVf_UTF8> only, all other flags
+will create a normal C<SVt_PV> with a body.  Creation is done via
+L<newSVpvn|perlapi/newSVpvn_flags>, type-check via L<perlapi/SvSPOK>
+which checks that the L<perlapi/SvANY> points 3 words forward to the
+PV field in the SV head. The accessors L<SvPVX|perlapi/SvPVX>,
+L<SvCUR|perlapi/SvCUR>, L<SvLEN|perlapi/SvLEN>, ... are now stricly
+non-lvalues, not setable. An upgrade to a normal PV is done via
+L<sv_upgrade|perlapi/sv_upgrade>.
+
+XS problems might be C<SvPVX> and C<SvCUR> being not setable, use the
+explicit setters L<perlapi/SvPV_set> or L<perlapi/SvCUR_set>
+instead. There are also new L<perlapi/SvCUR_inc> and
+L<perlapi/SvCUR_dec> macros.
+
+See L<[cperl #141]|https://github.com/perl11/cperl/issues/141>.
+
 =back
 
 =head1 Selected Bug Fixes
