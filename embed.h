@@ -1716,6 +1716,7 @@
 #define cop_free(a)		S_cop_free(aTHX_ a)
 #define core_type_name(a)	S_core_type_name(aTHX_ a)
 #define cv_check_inline(a,b)	S_cv_check_inline(aTHX_ a,b)
+#define cv_do_inline(a,b,c)	S_cv_do_inline(aTHX_ a,b,c)
 #define dup_attrlist(a)		S_dup_attrlist(aTHX_ a)
 #define finalize_op(a)		S_finalize_op(aTHX_ a)
 #define find_and_forget_pmops(a)	S_find_and_forget_pmops(aTHX_ a)
@@ -1746,7 +1747,9 @@
 #define no_bareword_allowed(a)	S_no_bareword_allowed(aTHX_ a)
 #define no_fh_allowed(a)	S_no_fh_allowed(aTHX_ a)
 #define op_check_type(a,b,c)	S_op_check_type(aTHX_ a,b,c)
+#define op_clone_sv(a)		S_op_clone_sv(aTHX_ a)
 #define op_destroy(a)		S_op_destroy(aTHX_ a)
+#define op_fixup(a,b,c)		S_op_fixup(aTHX_ a,b,c)
 #define op_integerize(a)	S_op_integerize(aTHX_ a)
 #define op_next_nn		S_op_next_nn
 #define op_sibling_newUNOP(a,b,c,d)	S_op_sibling_newUNOP(aTHX_ a,b,c,d)

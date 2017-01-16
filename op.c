@@ -2910,7 +2910,7 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
         /* skip on call-by-ref semantics: $_[n] */
         else if (type == OP_AELEMFAST) {
             if (strEQ(GvNAME(cGVOPo_gv), "_")) {
-                DEBUG_k(deb("check_inline: skip call-by-ref aelemfast($_[])\n"));
+                DEBUG_k(Perl_deb(aTHX_ "check_inline: skip call-by-ref aelemfast($_[])\n"));
                 return FALSE;
             }
         }
@@ -2921,7 +2921,7 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
             if ((actions & MDEREF_ACTION_MASK) == MDEREF_AV_gvav_aelem) {
                 GV *gv = (GV*)UNOP_AUX_item_sv(items);
                 if (GvNAMELEN(gv) == 1 && *GvNAME(gv) == '_') {
-                    DEBUG_k(deb("check_inline: skip call-by-ref multideref($_[])\n"));
+                    DEBUG_k(Perl_deb(aTHX_ "check_inline: skip call-by-ref multideref($_[])\n"));
                     return FALSE;
                 }
             }
@@ -2930,7 +2930,7 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
                 PADLIST * const padlist = CvPADLIST(compcv);
                 PADNAME * pad = padnamelist_fetch(PadlistNAMES(padlist), off);
                 if (PadnameLEN(pad) == 1 && *PadnamePV(pad) == '_') {
-                    DEBUG_k(deb("check_inline: skip call-by-ref multideref($_[])\n"));
+                    DEBUG_k(Perl_deb(aTHX_ "check_inline: skip call-by-ref multideref($_[])\n"));
                     return FALSE;
                 }
             }
@@ -2951,7 +2951,7 @@ S_cv_check_inline(pTHX_ const OP *o, CV *compcv)
                 ;
             }
             if (cv && CvSTART(cv) == firstop) {
-                DEBUG_k(deb("check_inline: skip recursion\n"));
+                DEBUG_k(Perl_deb(aTHX_ "check_inline: skip recursion\n"));
                 return FALSE;
             }
 	}
@@ -9188,7 +9188,7 @@ S_op_fixup(pTHX_ OP *old, OP *newop, U32 init) {
                                                 OP* are unique during clone */
     if (!cache || (init == 1)) {
         if (cache) { /* sv_clear(cache); oops, the values are no SV's, the keys no char* */
-            DEBUG_H(deb("opcache clear\n"));
+            DEBUG_H(Perl_deb(aTHX_ "opcache clear\n"));
             Safefree(HvARRAY(cache));
             SvFLAGS(cache) &= SVf_BREAK;
             SvFLAGS(cache) |= SVTYPEMASK;
@@ -9213,7 +9213,7 @@ S_op_fixup(pTHX_ OP *old, OP *newop, U32 init) {
             plant_SV((SV*)cache);
         }
         cache = newHV();
-        DEBUG_H(deb("opcache init\n"));
+        DEBUG_H(Perl_deb(aTHX_ "opcache init\n"));
     }
 /* HV_FETCH_JUST_SV returns &HeVAL directly, not the HE*. */
 #define hv_fetch_hash(hv,key,klen,hash) \
@@ -9235,7 +9235,7 @@ S_op_fixup(pTHX_ OP *old, OP *newop, U32 init) {
 #endif
             op = (OP**)hv_fetch_hash(cache, (char*)old, sizeof(OP*), hash);
             assert(!newop || (old->op_type == newop->op_type));
-            DEBUG_H(deb("opcache fetch %p (%s) => %p (%s)\t[%d]\n", old, OP_NAME(old),
+            DEBUG_H(Perl_deb(aTHX_ "opcache fetch %p (%s) => %p (%s)\t[%d]\n", old, OP_NAME(old),
                         op?*op:0, op?OP_NAME(*op):"", init));
 #ifndef DEBUGGING
         }
@@ -9244,7 +9244,7 @@ S_op_fixup(pTHX_ OP *old, OP *newop, U32 init) {
             OP* o = *op;
             assert(old->op_type == o->op_type);
             if ((init == 2 || init == 3) && newop != o) {
-                DEBUG_kv(deb("fixup %p (%s) = %p (%s)\t[%d]\n", newop, OP_NAME(newop),
+                DEBUG_kv(Perl_deb(aTHX_ "fixup %p (%s) = %p (%s)\t[%d]\n", newop, OP_NAME(newop),
                              o, OP_NAME(o), init));
                 newop = o;
             }
@@ -9257,7 +9257,7 @@ S_op_fixup(pTHX_ OP *old, OP *newop, U32 init) {
             if (!init) /* with 0 and solely op_next the entry should not exist */
                 assert(!op);
 #endif
-            DEBUG_H(deb("opcache store %p (%s), %p (%s)\t[%d]\n", old, OP_NAME(old),
+            DEBUG_H(Perl_deb(aTHX_ "opcache store %p (%s), %p (%s)\t[%d]\n", old, OP_NAME(old),
                         newop, newop?OP_NAME(newop):"", init));
             hv_store_hash(cache, (char*)old, sizeof(OP*), (SV*)newop, hash);
         }
@@ -9405,7 +9405,7 @@ Perl_op_clone_oplist(pTHX_ OP* o, OP* last, bool init) {
  */
 
 static OP*
-S_op_clone_sv(OP* o) {
+S_op_clone_sv(pTHX_ OP* o) {
     const OPCODE type = o->op_type;
     switch (type) {
     case OP_GV:
@@ -9420,21 +9420,25 @@ S_op_clone_sv(OP* o) {
     return o;
 }
 
-/* cv_do_inline needs to translate the args,
- *   o:    pushmark
- *   cvop: entersub
- * Splice inlined ENTERSUB into the current body.
- * METHOD should not arrive here, neither $obj->method.
- * handle args: shift, = @_ or just accept SIGNATURED subs with PERL_FAKE_SIGNATURE.
- * with a OP_SIGNATURE it is easier. without need to populate @_.
- * if arg is call-by-value make a copy.
- * adjust or add targs,
- * with local or eval{} or caller, entersub,  ... need to add ENTER/LEAVE,
- * skip ENTER/LEAVE if certain ops are absent
- *
- * $lhs = call(...); => $lhs = do {...inlined...};
- */
+/*
+=for apidoc cv_do_inline
 
+needs to translate the args,
+  o:    pushmark
+  cvop: entersub
+Splice inlined ENTERSUB into the current body.
+METHOD should not arrive here, neither $obj->method.
+handle args: shift, = @_ or just accept SIGNATURED subs with PERL_FAKE_SIGNATURE.
+with a OP_SIGNATURE it is easier. without need to populate @_.
+if arg is call-by-value make a copy.
+adjust or add targs,
+with local or eval{} or caller, entersub,  ... need to add ENTER/LEAVE,
+skip ENTER/LEAVE if certain ops are absent
+
+$lhs = call(...); => $lhs = do {...inlined...};
+
+=cut
+*/
 static OP*
 S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
 {
@@ -9478,7 +9482,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
         for (o = arg; o->op_next; o = S_op_next_nn(o)) {
             if (args > 5) {
                 CvINLINABLE_off(cv); /* do not try again */
-                DEBUG_k(deb("rpeep: skip inlining sub, too many args\n"));
+                DEBUG_k(Perl_deb(aTHX_ "rpeep: skip inlining sub, too many args\n"));
                 return NULL;
             }
             inargs[args] = o;
@@ -9524,7 +9528,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             for (tmp=o; tmp; o=tmp) { /* free the clones */
                 tmp = o->op_next; op_free(o);
             }
-            DEBUG_k(deb("inline: skip inlining sub, too large body\n"));
+            DEBUG_k(Perl_deb(aTHX_ "inline: skip inlining sub, too large body\n"));
             return NULL;
         }
         /* ctl ops need a block */
@@ -9591,28 +9595,28 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
             o = o->op_next;
 
             if (!optim_args) {
-                DEBUG_kv(deb("rpeep: skip optim_args\n"));
+                DEBUG_kv(Perl_deb(aTHX_ "rpeep: skip optim_args\n"));
             }
             else if (type == OP_GV && strEQ(GvNAME(cGVOPo_gv), "_")) {
                 /* see PERL_FAKE_SIGNATURE assign */
                 /* my () = @_ */
                 optim_args = FALSE;
-                DEBUG_kv(deb("inline: TODO copy @_\n"));
+                DEBUG_kv(Perl_deb(aTHX_ "inline: TODO copy @_\n"));
             }
             else if (OpSPECIAL(o) && type == OP_SHIFT) {
                 if (seen_logop || j >= args) {
                     optim_args = FALSE;
                     o = prev;
-                    DEBUG_k(deb("inline: skip optim_args, logop seen before %d of %d arg\n",
+                    DEBUG_k(Perl_deb(aTHX_ "inline: skip optim_args, logop seen before %d of %d arg\n",
                                 j, args));
                     continue;
                 }
-                DEBUG_k(deb("inline: optimize shift => %d arg by %s\n", j,
+                DEBUG_k(Perl_deb(aTHX_ "inline: optimize shift => %d arg by %s\n", j,
                             (o->op_flags & OPf_MOD && ISNT_TYPE(o, CONST))
                              ? "ref":"value"));
                 /* do not copy a literal (const) arg */
                 o = (o->op_flags & OPf_MOD && ISNT_TYPE(o, CONST))
-                    ? S_op_clone_sv(inargs[j++]) : inargs[j++];
+                    ? op_clone_sv(inargs[j++]) : inargs[j++];
                 o->op_next = prev->op_next->op_next;
                 prev->op_next = o;
             }
@@ -9621,15 +9625,15 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 if (seen_logop || j >= args) {
                     optim_args = FALSE;
                     o = prev;
-                    DEBUG_k(deb("inline: skip optim_args, logop seen before %d of %d arg\n",
+                    DEBUG_k(Perl_deb(aTHX_ "inline: skip optim_args, logop seen before %d of %d arg\n",
                                 ix, args));
                     continue;
                 }
-                DEBUG_k(deb("inline: optimize pop => %d arg by %s\n", ix,
+                DEBUG_k(Perl_deb(aTHX_ "inline: optimize pop => %d arg by %s\n", ix,
                              (o->op_flags & OPf_MOD && o->op_type != OP_CONST)
                              ? "ref":"value"));
                 o = (o->op_flags & OPf_MOD && ISNT_TYPE(o, CONST))
-                    ? S_op_clone_sv(inargs[ix]) : inargs[ix];
+                    ? op_clone_sv(inargs[ix]) : inargs[ix];
                 o->op_next = prev->op_next->op_next;
                 prev->op_next = o;
                 args--;
@@ -9639,11 +9643,11 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                 if (ix < 0 || ix >= args) {
                     optim_args = FALSE;
                     o = prev;
-                    DEBUG_k(deb("inline: skip optim_args, invalid %d of %d arg\n", ix, args));
+                    DEBUG_k(Perl_deb(aTHX_ "inline: skip optim_args, invalid %d of %d arg\n", ix, args));
                     continue;
                 }
                 assert(ix >= 0 && ix < args);
-                DEBUG_k(deb("inline: optimize $_[%d] arg by ref\n", ix));
+                DEBUG_k(Perl_deb(aTHX_ "inline: optimize $_[%d] arg by ref\n", ix));
                 o = inargs[ix];
                 o->op_next = prev->op_next->op_next;
                 prev->op_next = o;
@@ -9659,7 +9663,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                         int ix = 0;
                         optim_args = FALSE;
                         assert(ix >= 0 && ix < args);
-                        DEBUG_kv(deb("rpeep: *_[??] arg by ref\n"));
+                        DEBUG_kv(Perl_deb(aTHX_ "rpeep: *_[??] arg by ref\n"));
                         if (0) {
                             o = inargs[ix];
                             o->op_next = prev->op_next->op_next;
@@ -9676,7 +9680,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
                         int ix = 0;
                         optim_args = FALSE;
                         assert(ix >= 0 && ix < args);
-                        DEBUG_kv(deb("rpeep: $_[??] arg by ref\n"));
+                        DEBUG_kv(Perl_deb(aTHX_ "rpeep: $_[??] arg by ref\n"));
                         if (0) {
                             o = inargs[ix];
                             o->op_next = prev->op_next->op_next;
@@ -9723,7 +9727,7 @@ S_cv_do_inline(pTHX_ OP *o, OP *cvop, CV *cv)
     } else { /* no leavesub or cvop->op_next == NULL */
         assert(0 && !"no leavesub or cvop->op_next == NULL");
     }
-    DEBUG_kv(deb("rpeep: inlined sub. args: %d, body: %d, with enter/leave: %d\n",
+    DEBUG_kv(Perl_deb(aTHX_ "rpeep: inlined sub. args: %d, body: %d, with enter/leave: %d\n",
                  args, i, with_enter_leave ));
     return firstop;
 }
@@ -18222,7 +18226,7 @@ Perl_rpeep(pTHX_ OP *o)
                                     SvREFCNT_dec(cSVOPx_sv(gvop));
                                     ((SVOP*)gvop)->op_sv = (SV*)gvf;
                                     o2->op_flags |= OPf_STACKED;
-                                    DEBUG_k(deb("rpeep: convert static method call to sub %s::%s\n",
+                                    DEBUG_k(Perl_deb(aTHX_ "rpeep: convert static method call to sub %s::%s\n",
                                                 pkg, cvname));
                                     meth = FALSE;
                                 }
@@ -18231,11 +18235,11 @@ Perl_rpeep(pTHX_ OP *o)
                         if (cv && CvINLINABLE(cv) && !meth) {
                             OP* tmp;
                             if (cop_hints_fetch_pvs(PL_curcop, "inline", REFCOUNTED_HE_EXISTS)) {
-                                DEBUG_k(deb("rpeep: skip inline sub %s::%s, no inline\n",
+                                DEBUG_k(Perl_deb(aTHX_ "rpeep: skip inline sub %s::%s, no inline\n",
                                             pkg, cvname));
                             } else {
-                                DEBUG_k(deb("rpeep: inline sub %s::%s\n", pkg, cvname));
-                                if ((tmp = S_cv_do_inline(o, o2, cv))) {
+                                DEBUG_k(Perl_deb(aTHX_ "rpeep: inline sub %s::%s\n", pkg, cvname));
+                                if ((tmp = cv_do_inline(o, o2, cv))) {
                                     o = tmp;
                                     if (oldop)
                                         oldop->op_next = o;
