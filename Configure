@@ -1421,6 +1421,9 @@ yaccflags=''
 CONFIG=''
 usecperl=''
 fake_signatures=''
+llvm_config=''
+llvmversion=''
+usellvmjit='define'
 
 : Detect odd OSs
 define='define'
@@ -22472,6 +22475,9 @@ else
 fi
 $rm -f foo* bar*
 
+test -n $llvm_config || llvm_config=llvm-config
+llvmversion=`$run $llvm_config --version`
+
 : see if this is a values.h system
 set values.h i_values
 eval $inhdr
@@ -25824,6 +25830,8 @@ libswanted_uselargefiles='$libswanted_uselargefiles'
 line='$line'
 lint='$lint'
 lkflags='$lkflags'
+llvm_config='$llvm_config'
+llvmversion='$llvmversion'
 ln='$ln'
 lns='$lns'
 localtime_r_proto='$localtime_r_proto'
@@ -26084,6 +26092,7 @@ usefaststdio='$usefaststdio'
 useithreads='$useithreads'
 usekernprocpathname='$usekernprocpathname'
 uselargefiles='$uselargefiles'
+usellvmjit='$usellvmjit'
 uselongdouble='$uselongdouble'
 usemallocwrap='$usemallocwrap'
 usemorebits='$usemorebits'

@@ -5530,6 +5530,14 @@ sed <<!GROK!THIS! >$CONFIG_H -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un
 #define PERL_BUILD_DATE "$cf_time"
 #endif
 
+/* USE_LLVMJIT:
+ *	This symbol, if defined, indicates that Perl is linked against
+ *      the llvm libraries, and uses its jit.
+ */
+#ifndef USE_LLVMJIT
+#$usellvmjit	USE_LLVMJIT		/**/
+#endif
+
 #endif
 !GROK!THIS!
 ;;

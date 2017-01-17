@@ -326,6 +326,11 @@
 #define is_utf8_xidcont(a)	Perl_is_utf8_xidcont(aTHX_ a)
 #define is_utf8_xidfirst(a)	Perl_is_utf8_xidfirst(aTHX_ a)
 #define isinfnan		Perl_isinfnan
+#define jit_checkcache(a,b,c)	Perl_jit_checkcache(aTHX_ a,b,c)
+#define jit_compile(a,b)	Perl_jit_compile(aTHX_ a,b)
+#define jit_destroy()		Perl_jit_destroy(aTHX)
+#define jit_init()		Perl_jit_init(aTHX)
+#define jit_run(a)		Perl_jit_run(aTHX_ a)
 #define leave_adjust_stacks(a,b,c,d)	Perl_leave_adjust_stacks(aTHX_ a,b,c,d)
 #define leave_scope(a)		Perl_leave_scope(aTHX_ a)
 #define lex_bufutf8()		Perl_lex_bufutf8(aTHX)
@@ -540,6 +545,7 @@
 #define rsignal(a,b)		Perl_rsignal(aTHX_ a,b)
 #define rsignal_state(a)	Perl_rsignal_state(aTHX_ a)
 #define runops_debug()		Perl_runops_debug(aTHX)
+#define runops_jit()		Perl_runops_jit(aTHX)
 #define runops_standard()	Perl_runops_standard(aTHX)
 #define rv2cv_op_cv(a,b)	Perl_rv2cv_op_cv(aTHX_ a,b)
 #define safesyscalloc		Perl_safesyscalloc
@@ -1047,6 +1053,9 @@
 #  endif
 #  if defined(PERL_CORE) || defined (PERL_EXT)
 #define sv_or_pv_pos_u2b(a,b,c,d)	S_sv_or_pv_pos_u2b(aTHX_ a,b,c,d)
+#  endif
+#  if defined(PERL_IN_DUMP_C) || defined(PERL_IN_JIT_C)
+#define deb_curcv(a)		Perl_deb_curcv(aTHX_ a)
 #  endif
 #  if defined(PERL_IN_REGCOMP_C)
 #define _make_exactf_invlist(a,b)	S__make_exactf_invlist(aTHX_ a,b)
@@ -1630,7 +1639,6 @@
 #  if defined(PERL_IN_DUMP_C)
 #define append_gv_name(a,b)	S_append_gv_name(aTHX_ a,b)
 #define append_padvar(a,b,c,d,e,f)	S_append_padvar(aTHX_ a,b,c,d,e,f)
-#define deb_curcv(a)		S_deb_curcv(aTHX_ a)
 #define deb_padvar(a,b,c)	S_deb_padvar(aTHX_ a,b,c)
 #define debprof(a)		S_debprof(aTHX_ a)
 #define pm_description(a)	S_pm_description(aTHX_ a)

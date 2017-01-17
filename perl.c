@@ -881,6 +881,7 @@ perl_destruct(pTHXx)
        be cleaned up now.
      */
 
+    jit_destroy();
     PerlIO_destruct(aTHX);
 
     if (PL_sv_objcount) {
@@ -1904,6 +1905,9 @@ S_Internals_V(pTHX_ CV *cv)
 #  ifdef USE_HASH_SEED_EXPLICIT
 			     " USE_HASH_SEED_EXPLICIT"
 #  endif
+#  ifdef USE_LLVMJIT
+			     " USE_LLVMJIT"
+#  endif
 #  ifdef USE_LOCALE
 			     " USE_LOCALE"
 #  endif
@@ -2039,6 +2043,11 @@ S_parse_body(pTHX_ char **env, XSINIT_t xsinit)
 	    s++;
 	    goto reswitch;
 
+#ifdef USE_LLVMJIT
+	case 'j':
+	    PL_runops = PL_runops_jit;
+            break;
+#endif
 	case 'E':
 	    PL_minus_E = TRUE;
 	    /* FALLTHROUGH */
@@ -3338,6 +3347,7 @@ Perl_get_debug_opts(pTHX_ const char **s, bool givehelp)
       "  L  trace some locale setting information--for Perl core development\n"
       "  I  PerlIO, as previously with env PERLIO_DEBUG\n"
       "  k  ck_ check and optimizer functions\n",
+      "  j  jit\n",
       NULL
     };
     UV uv = 0;
@@ -3346,7 +3356,7 @@ Perl_get_debug_opts(pTHX_ const char **s, bool givehelp)
 
     if (isALPHA(**s)) {
 	/* if adding extra options, remember to update DEBUG_MASK */
-	static const char debopts[] = "psltocPmfrxuUHXDSTRJvCAqMBLIk";
+	static const char debopts[] = "psltocPmfrxuUHXDSTRJvCAqMBLIkj";
 
 	for (; isWORDCHAR(**s); (*s)++) {
 	    const char * const d = strchr(debopts,**s);
@@ -4652,6 +4662,8 @@ S_init_postdump_symbols(pTHX_ int argc, char **argv, char **env)
     if (PL_minus_a) {
       (void) get_avs("main::F", GV_ADD | GV_ADDMULTI);
     }
+
+    jit_init();
 }
 
 STATIC void

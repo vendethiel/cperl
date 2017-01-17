@@ -1054,6 +1054,21 @@ XS(XS_re_regexp_pattern)
     NOT_REACHED; /* NOTREACHED */
 }
 
+XS(XS_JitCache_load); /* prototype to pass -Wmissing-prototypes */
+XS(XS_JitCache_load)
+{
+  dXSARGS;
+  char* path;
+  bool ret;
+  if (items < 1 || !SvPOK(ST(0)))
+    croak_xs_usage(cv, "path, @subs");
+
+  path = SvPVX(ST(0));
+  ret = jit_checkcache(NULL, path);
+  ST(0) = ret ? &PL_sv_yes : &PL_sv_no;
+  XSRETURN(1);
+}
+
 #include "vutil.h"
 #include "vxs.inc"
 
@@ -1089,6 +1104,7 @@ static const struct xsub_details details[] = {
     {"re::regnames", XS_re_regnames, ";$"},
     {"re::regnames_count", XS_re_regnames_count, ""},
     {"re::regexp_pattern", XS_re_regexp_pattern, "$"},
+    {"JitCache::load", XS_JitCache_load, "$@"},
 };
 
 STATIC OP*

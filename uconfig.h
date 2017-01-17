@@ -5495,9 +5495,17 @@
 #define PERL_BUILD_DATE "Thu Jan  1 00:00:00 GMT 1970"
 #endif
 
+/* USE_LLVMJIT:
+ *	This symbol, if defined, indicates that Perl is linked against
+ *      the llvm libraries, and uses its jit.
+ */
+#ifndef USE_LLVMJIT
+#	USE_LLVMJIT		/**/
+#endif
+
 #endif
 
 /* Generated from:
- * d6185b0a78c38e26ca03da044c402b5474a8da01617d7a0f63f2e45d0dc17f6f config_h.SH
+ * 5c1b7193a338b8411030201881ed146c1587afbcf4ae355d479bceec8ff21b60 config_h.SH
  * 94a1cca2987bf62ce97086cf5a222efe3b58d3a2644376ebf1845677a55676ce uconfig.sh
  * ex: set ro: */

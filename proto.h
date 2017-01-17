@@ -2927,6 +2927,31 @@ PERL_CALLCONV bool	Perl_isinfnansv(pTHX_ SV *sv)
 #define PERL_ARGS_ASSERT_ISINFNANSV	\
 	assert(sv)
 
+PERL_CALLCONV void*	Perl_jit_checkcache(pTHX_ const CV* cv, const char* pmcpath, char** bcpath)
+			__attribute__global__
+			__attribute__nonnull__(pTHX_2)
+			__attribute__nonnull__(pTHX_3);
+#define PERL_ARGS_ASSERT_JIT_CHECKCACHE	\
+	assert(pmcpath); assert(bcpath)
+
+PERL_CALLCONV bool	Perl_jit_compile(pTHX_ const CV* cv, const char* pmcpath)
+			__attribute__global__
+			__attribute__nonnull__(pTHX_1);
+#define PERL_ARGS_ASSERT_JIT_COMPILE	\
+	assert(cv)
+
+PERL_CALLCONV void	Perl_jit_destroy(pTHX)
+			__attribute__global__;
+
+PERL_CALLCONV bool	Perl_jit_init(pTHX)
+			__attribute__global__;
+
+PERL_CALLCONV OP*	Perl_jit_run(pTHX_ const CV* cv)
+			__attribute__global__
+			__attribute__nonnull__(pTHX_1);
+#define PERL_ARGS_ASSERT_JIT_RUN	\
+	assert(cv)
+
 PERL_CALLCONV OP*	Perl_jmaybe(pTHX_ OP *o)
 			__attribute__nonnull__(pTHX_1);
 #define PERL_ARGS_ASSERT_JMAYBE	\
@@ -4742,6 +4767,9 @@ PERL_CALLCONV Sighandler_t	Perl_rsignal_state(pTHX_ int i)
 			__attribute__global__;
 
 PERL_CALLCONV int	Perl_runops_debug(pTHX)
+			__attribute__global__;
+
+PERL_CALLCONV int	Perl_runops_jit(pTHX)
 			__attribute__global__;
 
 PERL_CALLCONV int	Perl_runops_standard(pTHX)
@@ -7958,7 +7986,6 @@ STATIC void	S_append_padvar(pTHX_ PADOFFSET off, CV *cv, SV *out, int n, bool pa
 #define PERL_ARGS_ASSERT_APPEND_PADVAR	\
 	assert(out)
 
-STATIC CV*	S_deb_curcv(pTHX_ I32 ix);
 STATIC void	S_deb_padvar(pTHX_ PADOFFSET off, int n, bool paren);
 STATIC void	S_debprof(pTHX_ const OP *o)
 			__attribute__nonnull__(pTHX_1);
@@ -7977,6 +8004,11 @@ PERL_CALLCONV void	Perl_hv_kill_backrefs(pTHX_ HV *hv)
 			__attribute__nonnull__(pTHX_1);
 #define PERL_ARGS_ASSERT_HV_KILL_BACKREFS	\
 	assert(hv)
+
+#endif
+#if defined(PERL_IN_DUMP_C) || defined(PERL_IN_JIT_C)
+PERL_CALLCONV CV*	Perl_deb_curcv(pTHX_ I32 ix)
+			__attribute__global__;
 
 #endif
 #if defined(PERL_IN_GV_C)

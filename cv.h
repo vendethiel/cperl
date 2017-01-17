@@ -150,6 +150,7 @@ See L<perlguts/Autoloading with XSUBs>.
 #define CVf_STATIC	0x200000 /* statically allocated padlist and proto */
 #define CVf_INLINABLE	0x400000 /* Should be inlined */
 #define CVf_MULTI	0x800000 /* multi dispatch on types */
+#define CVf_JIT		0x1000000 /* jitted */
 
 /* This symbol for optimised communication between toke.c and op.c: */
 #define CVf_BUILTIN_ATTRS	(CVf_METHOD|CVf_LVALUE|CVf_CONST|CVf_ANONCONST \
@@ -250,8 +251,11 @@ See L<perlguts/Autoloading with XSUBs>.
 #define CvPURE(cv)		(CvFLAGS(cv) & CVf_PURE)
 #define CvPURE_on(cv)		(CvFLAGS(cv) |= CVf_PURE)
 #define CvSTATIC(cv)		(CvFLAGS(cv) & CVf_STATIC)
-
 #define CvMULTI(cv)             0
+
+#define CvJIT(cv)		(CvFLAGS(cv) & CVf_JIT)
+#define CvJIT_on(cv)		(CvFLAGS(cv) |= CVf_JIT)
+#define CvJIT_off(cv)		(CvFLAGS(cv) &= ~CVf_JIT)
 
 /* Flags for newXS_flags  */
 #define XS_DYNAMIC_FILENAME	0x01	/* The filename isn't static  */

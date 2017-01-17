@@ -527,14 +527,14 @@ inc = mg_names.inc overload.inc packsizetables.inc vxs.inc
 
 c1 = av.c scope.c op.c doop.c doio.c dump.c gv.c hv.c mg.c reentr.c mro_core.c perl.c
 c2 = perly.c pp_hot.c pp.c pp_type.c pp_ctl.c pp_sys.c regcomp.c regexec.c utf8.c sv.c
-c3 = taint.c toke.c util.c deb.c run.c universal.c xsutils.c pad.c globals.c keywords.c
+c3 = taint.c toke.c util.c deb.c jit.c run.c universal.c xsutils.c pad.c globals.c keywords.c
 c4 = perlio.c perlapi.c numeric.c mathoms.c locale.c pp_pack.c pp_sort.c caretx.c dquote.c time64.c
 c5 = $(mallocsrc)
 
 c = $(c1) $(c2) $(c3) $(c4) $(c5) miniperlmain.c opmini.c perlmini.c
 
 obj1 = $(mallocobj) gv$(OBJ_EXT) toke$(OBJ_EXT) perly$(OBJ_EXT) pad$(OBJ_EXT) regcomp$(OBJ_EXT) dump$(OBJ_EXT) util$(OBJ_EXT) mg$(OBJ_EXT) reentr$(OBJ_EXT) mro_core$(OBJ_EXT) keywords$(OBJ_EXT)
-obj2 = hv$(OBJ_EXT) av$(OBJ_EXT) run$(OBJ_EXT) pp_hot$(OBJ_EXT) sv$(OBJ_EXT) pp$(OBJ_EXT) pp_type$(OBJ_EXT) scope$(OBJ_EXT) pp_ctl$(OBJ_EXT) pp_sys$(OBJ_EXT)
+obj2 = hv$(OBJ_EXT) av$(OBJ_EXT) jit$(OBJ_EXT) run$(OBJ_EXT) pp_hot$(OBJ_EXT) sv$(OBJ_EXT) pp$(OBJ_EXT) pp_type$(OBJ_EXT) scope$(OBJ_EXT) pp_ctl$(OBJ_EXT) pp_sys$(OBJ_EXT)
 obj3 = doop$(OBJ_EXT) doio$(OBJ_EXT) regexec$(OBJ_EXT) utf8$(OBJ_EXT) taint$(OBJ_EXT) deb$(OBJ_EXT) universal$(OBJ_EXT) xsutils$(OBJ_EXT) globals$(OBJ_EXT) perlio$(OBJ_EXT) perlapi$(OBJ_EXT) numeric$(OBJ_EXT) mathoms$(OBJ_EXT) locale$(OBJ_EXT) pp_pack$(OBJ_EXT) pp_sort$(OBJ_EXT) caretx$(OBJ_EXT) dquote$(OBJ_EXT) time64$(OBJ_EXT)
 
 # split the objects into 3 exclusive sets: those used by both miniperl and
@@ -875,6 +875,31 @@ $(LIBPERL_NONSHR): $(perllib_objs)
 	;;
 esac
 
+llvm_version="`$llvm_config --version`"
+case "$usellvmjit" in
+define)
+    jitcflags="`$llvm_config --cflags`"
+    jitlinkflags="`$llvm_config --ldflags`"
+    if [ $llvm_config --libs jit ]; then
+        jitlibflags="`$llvm_config --libs core jit executionengine interpreter native bitwriter ipo` `$llvm_config --system-libs`"
+    else
+        # since llvm-3.6 no jit but orcjit or mcjit
+        jitlibflags="`$llvm_config --libs core orcjit executionengine interpreter native bitwriter ipo` `$llvm_config --system-libs`"
+    fi
+    $spitshell >>$Makefile <<!NO!SUBS!
+JITCFLAGS     =  $jitcflags
+JITLINKFLAGS  =  $jitlinkflags
+JITLIBFLAGS   =  $jitlibflags
+
+!NO!SUBS!
+    $spitshell >>$Makefile <<'!NO!SUBS!'
+libperl.bc: $(perllib_objs)
+	$(AR) $(ARFLAGS) $@ $(perllib_objs) $(DYNALOADER)
+
+!NO!SUBS!
+	;;
+esac
+
 if test -s $Makefile_s ; then
 	. $Makefile_s
 	$spitshell >>$Makefile <<!GROK!THIS!
@@ -931,7 +956,7 @@ $(LIBPERL): $& $(perllib_dep) $(DYNALOADER) $(LIBPERLEXPORT)
 	true)
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 	rm -f $@
-	$(LD) -o $@ $(SHRPLDFLAGS) $(perllib_objs) $(DYNALOADER) $(libs)
+	$(LD) -o $@ $(SHRPLDFLAGS) $(JITLINKFLAGS) $(perllib_objs) $(DYNALOADER) $(JITLIBFLAGS) $(libs)
 !NO!SUBS!
 		case "$osname" in
 		aix)
@@ -986,7 +1011,7 @@ $(MINIPERL_EXE): lib/buildcustomize.pl
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
 	-@rm -f miniperl.xok
-	$(LD) $(CLDFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(libs)
+	$(LD) $(CLDFLAGS) $(JITLINKFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(JITLIBFLAGS) $(libs)
 #	$(LDLIBPTH) ./miniperl$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	$(MINIPERL) -f write_buildcustomize.pl
 !NO!SUBS!
@@ -994,7 +1019,7 @@ lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
 	aix*)
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_objs)
-	$(LD) -o $(MINIPERL_EXE) $(CLDFLAGS) $(miniperl_objs) $(libs)
+	$(LD) -o $(MINIPERL_EXE) $(CLDFLAGS) $(JITLINKFLAGS) $(miniperl_objs) $(JITLIBFLAGS) $(libs)
 	$(LDLIBPTH) ./miniperl$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	$(MINIPERL) make_patchnum.pl && \
 	  $(MINIPERL) configpm && \
@@ -1004,7 +1029,7 @@ lib/buildcustomize.pl: $& $(miniperl_objs)
 	next4*)
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
-	$(LD) -o $(MINIPERL_EXE) $(miniperl_objs) $(libs)
+	$(LD) -o $(MINIPERL_EXE) $(JITLINKFLAGS) $(miniperl_objs) $(JITLIBFLAGS) $(libs)
 	$(LDLIBPTH) ./miniperl$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	$(MINIPERL) make_patchnum.pl && \
 	  $(MINIPERL) configpm && \
@@ -1027,7 +1052,7 @@ NAMESPACEFLAGS = -force_flat_namespace
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
 	-@rm -f miniperl.xok
-	$(LD) $(CLDFLAGS) $(NAMESPACEFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(libs)
+	$(LD) $(CLDFLAGS) $(JITLINKFLAGS) $(NAMESPACEFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs)$(JITLIBFLAGS) $(libs)
 !NO!SUBS!
                 case "$ccflags" in
                     *-DDEBUGGING*) $spitshell >>$Makefile <<'!NO!SUBS!'
@@ -1058,7 +1083,7 @@ lib/buildcustomize.pl: \$& \$(miniperl_dep) write_buildcustomize.pl
 			$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_dep) write_buildcustomize.pl
 	-@rm -f miniperl.xok
-	$(LD) $(CLDFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(libs)
+	$(LD) $(CLDFLAGS) $(JITLINKFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(JITLIBFLAGS) $(libs)
 	$(LDLIBPTH) ./miniperl$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	$(MINIPERL) make_patchnum.pl && \
 	  $(MINIPERL) configpm && \
@@ -1078,15 +1103,15 @@ $(PERL_EXE): $& $(perlmain_dep) $(LIBPERL) $(static_ext) ext.libs $(PERLEXPORT) 
 	# In AmigaOS the Perl executable needs to be linked with -ldl,
 	# but none of the other executables should be.
         amigaos) $spitshell >>$Makefile <<'!NO!SUBS!'
-	$(SHRPENV) $(CC) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(LLIBPERL) $(static_ext) `cat ext.libs` $(libs) -ldl
+	$(SHRPENV) $(CC) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(JITLINKFLAGS) $(perlmain_objs) $(JITLIBFLAGS) $(LLIBPERL) $(static_ext) `cat ext.libs` $(libs) -ldl
 !NO!SUBS!
         ;;
         os390) $spitshell >>$Makefile <<'!NO!SUBS!'
-	$(SHRPENV) $(LD) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(LLIBPERL) $(static_ext) `cat ext.libs` $(libs)
+	$(SHRPENV) $(LD) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(JITLINKFLAGS) $(perlmain_objs) $(JITLIBFLAGS) $(LLIBPERL) $(static_ext) `cat ext.libs` $(libs)
 !NO!SUBS!
         ;;
         darwin) $spitshell >>$Makefile <<'!NO!SUBS!'
-	$(SHRPENV) $(LD) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	$(SHRPENV) $(LD) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(JITLINKFLAGS) $(perlmain_objs) $(static_ext) $(JITLIBFLAGS) $(LLIBPERL) `cat ext.libs` $(libs)
 !NO!SUBS!
                 case "$ccflags" in
                     *-DDEBUGGING*) $spitshell >>$Makefile <<'!NO!SUBS!'
@@ -1096,7 +1121,7 @@ $(PERL_EXE): $& $(perlmain_dep) $(LIBPERL) $(static_ext) ext.libs $(PERLEXPORT) 
                 esac
         ;;
         *) $spitshell >>$Makefile <<'!NO!SUBS!'
-	$(SHRPENV) $(LD) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	$(SHRPENV) $(LD) -o perl $(CLDFLAGS) $(CCDLFLAGS) $(JITLINKFLAGS) $(perlmain_objs) $(static_ext) $(LLIBPERL) $(JITLIBFLAGS) `cat ext.libs` $(libs)
 !NO!SUBS!
         ;;
         esac

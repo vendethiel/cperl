@@ -265,7 +265,7 @@ Config_lookup (register const char *str, register unsigned int len);
 
 struct Perl_Config;
 
-#define TOTAL_KEYWORDS 1292
+#define TOTAL_KEYWORDS 1293
 #define MIN_WORD_LENGTH 1
 #define MAX_WORD_LENGTH 37
 #define MIN_HASH_VALUE 3
@@ -1606,6 +1606,7 @@ struct stringpool_t
     char stringpool_str5984[sizeof ("quadtype")];
     char stringpool_str6012[sizeof ("gnulibc_version")];
     char stringpool_str6051[sizeof ("d_nexttoward")];
+    char stringpool_str6055[sizeof ("usellvmjit")];
     char stringpool_str6058[sizeof ("doublenanbytes")];
     char stringpool_str6075[sizeof ("getservbyport_r_proto")];
     char stringpool_str6083[sizeof ("d_attribute_format")];
@@ -2901,6 +2902,7 @@ static const struct stringpool_t stringpool_contents =
     "quadtype",
     "gnulibc_version",
     "d_nexttoward",
+    "usellvmjit",
     "doublenanbytes",
     "getservbyport_r_proto",
     "d_attribute_format",
@@ -6542,7 +6544,10 @@ Config_lookup (register const char *str, register unsigned int len)
       {XSCNO}, {XSCNO},
 
       {(U16)(long)&((struct stringpool_t *)0)->stringpool_str6051,		T_INV,0,ALN64I"@@d_nexttoward@@"},
-      {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO},
+      {XSCNO}, {XSCNO}, {XSCNO},
+
+      {(U16)(long)&((struct stringpool_t *)0)->stringpool_str6055,		T_INV,0,ALN64I"@@usellvmjit@@"},
+      {XSCNO}, {XSCNO},
 
       {(U16)(long)&((struct stringpool_t *)0)->stringpool_str6058,		T_INV,0,ALN64I"@@doublenanbytes@@"},
       {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO}, {XSCNO},
@@ -7028,7 +7033,7 @@ Config_lookup (register const char *str, register unsigned int len)
       {(U16)(long)&((struct stringpool_t *)0)->stringpool_str9303,	T_INV,0,ALN64I"@@d_attribute_always_inline@@"}
     };
 
-#line 7031 "Config.xs"
+#line 7036 "Config.xs"
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
     {
       register int key = Config_hash (str, len);

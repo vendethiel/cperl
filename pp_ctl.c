@@ -4378,8 +4378,9 @@ S_require_file(pTHX_ SV *sv)
             RETPUSHUNDEF;
         }
     }
-    else
+    else {
 	SETERRNO(0, SS_NORMAL);
+    }
 
     /* Assume success here to prevent recursive requirement. */
     /* name is never assigned to again, so len is still strlen(name)  */

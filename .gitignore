@@ -96,6 +96,7 @@ MYMETA.*
 
 /miniperl
 /perl
+/libperl.bc
 
 /extra.pods
 /generate_uudmap

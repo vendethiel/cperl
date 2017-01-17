@@ -4493,7 +4493,12 @@ PP(pp_entersub)
                      && ckWARN(WARN_RECURSION)
                      && !(PERLDB_SUB && cv == GvCV(PL_DBsub))))
 	    sub_crush_depth(cv);
-	RETURNOP(CvSTART(cv));
+
+        if (CvJIT(cv)) {
+            RETURNOP(jit_run(cv));
+        } else {
+            RETURNOP(CvSTART(cv));
+        }
     }
     else { /* goto enterxssub */
         OpTYPE_set(PL_op, OP_ENTERXSSUB);

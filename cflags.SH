@@ -502,6 +502,12 @@ for file do
     # or customize here
 
     case "$file" in
+    jit)
+        #cc=clang
+        ccflags="`$llvm_config --cflags | sed -e's,-Wcovered-switch-default ,,'`"
+        ccflags="`echo $ccflags | sed -e's,-pedantic ,,'`"
+        stdflags="`echo $stdflags|sed -e's,-std=c89,-std=c99,'`"
+        ;;
     regcomp) : work around http://bugs.debian.org/754054
         case $archname in
         mips-*|mipsel-*)
