@@ -226,15 +226,57 @@ bool Perl_jit_compile(pTHX_ const CV* cv, const char* pmcpath) {
                                                   : LLVMModuleCreateWithName(package),
                                                 subname, subret_type);
     LLVMBasicBlockRef entry   = LLVMAppendBasicBlock(sub, "entry");
+
+#ifndef PERL_LLVM_NOBUILDER
     LLVMBuilderRef builder    = LLVMCreateBuilder();
     char ppname[48] = { "_Perl_pp_" };
     const int len = sizeof("_Perl_pp_")-1;
-
+#else
+    LLVMMemoryBufferRef MemBuf;
+    SV* irbuf = newSVpvs(
+      "; ModuleID = '_jitted.c'\n\n"
+      "@PL_op = external global %struct.op*, align 8\n\n"
+      "; Function Attrs: nounwind ssp uwtable\n");
+    unsigned i;
+#endif
     /*llvm_lto_t lto        = llvm_create_optimizer();*/
     char *error = NULL;
     PERL_ARGS_ASSERT_JIT_COMPILE;
     assert(corelib);
-  
+
+#ifdef PERL_LLVM_NOBUILDER
+    /* Instead of the Builder API we could simply assemble
+       the code from IRReader.h: LLVMParseIRInContext().
+       It is a bit slower though. */
+    sv_catpvf(irbuf, "define void @_jitted_%s() #0 {\n", subname);
+    for (i=0; op; op = op->op_next) {
+        const char *name = OP_NAME(op);
+        /* XXX 64bit only so far */
+#ifdef USE_ITHREADS
+        /* my_perl->Iop = Perl_pp_%s( my_perl);", name */
+        sv_catpvf(irbuf,
+          "  %u = load %%struct.interpreter*, %struct.interpreter** @my_perl, align 8, !tbaa !2\n",
+          i++);
+        sv_catpvf(irbuf,
+          "  %u = tail call %%struct.op* @Perl_pp_%s(%%struct.interpreter* %u) #2\n",
+          i+1, name, i-1);
+        sv_catpvf(irbuf,
+          "  %u = load %%struct.interpreter*, %%struct.interpreter** @my_perl, align 8, !tbaa !2\n",
+          ++i);
+        sv_catpvf(irbuf,
+          "  %u = getelementptr inbounds %%struct.interpreter, %%struct.interpreter* %u, i64 0, i32 1\n",
+          i, i-1);
+        i++;
+#else
+        sv_catpvf(irbuf, "  %u = tail call %%struct.op* @Perl_pp_%s() #2\n", i, name);
+        sv_catpvf(irbuf, "  store %%struct.op* %u, %struct.op** @PL_op, align 8, !tbaa !2\n", i++);
+#endif
+    }
+    sv_catpvs(irbuf, "  ret void\n}\n");
+    MemBuf = LLVMCreateMemoryBufferWithMemoryRange(SvPVX_const(irbuf),
+        SvCUR(irbuf), "ir", 1);
+    LLVMParseIRInContext(LLVMGetGlobalContext(), MemBuf, &module, &error);
+#else    
     LLVMPositionBuilderAtEnd(builder, entry);
     for (; op; op = op->op_next) {
         /* linearize the PL_op = Perl_pp_opname(aTHX); calls */
@@ -265,6 +307,7 @@ bool Perl_jit_compile(pTHX_ const CV* cv, const char* pmcpath) {
         }
     }
     LLVMBuildRetVoid(builder);
+#endif
 
 #ifdef DEBUGGING
     LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
