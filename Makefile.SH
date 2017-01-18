@@ -886,11 +886,12 @@ case "$usellvmjit" in
 define)
     jitcflags="`$llvm_config --cflags`"
     jitlinkflags="`$llvm_config --ldflags`"
-    if [ $llvm_config --libs jit ]; then
+    if test -n "`$llvm_config --libs jit >/dev/null`"; then
         jitlibflags="`$llvm_config --libs core jit executionengine interpreter native bitwriter ipo` `$llvm_config --system-libs`"
     else
-        # since llvm-3.6 no jit but orcjit or mcjit
-        jitlibflags="`$llvm_config --libs core orcjit executionengine interpreter native bitwriter ipo` `$llvm_config --system-libs`"
+        # since llvm-3.6 no jit ("legacy jit"), but mcjit
+        # (not orcjit yet, though this supports multiple modules better)
+        jitlibflags="`$llvm_config --libs core mcjit executionengine interpreter native bitwriter ipo` `$llvm_config --system-libs`"
     fi
     $spitshell >>$Makefile <<!NO!SUBS!
 JITCFLAGS     =  $jitcflags
