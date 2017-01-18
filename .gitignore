@@ -33,6 +33,7 @@ bug*.pl
 /opmini.c
 /perlmain.c
 /perlmini.c
+/jitmini.c
 /pod/Makefile
 /runtests
 /writemain

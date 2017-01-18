@@ -531,10 +531,10 @@ c3 = taint.c toke.c util.c deb.c jit.c run.c universal.c xsutils.c pad.c globals
 c4 = perlio.c perlapi.c numeric.c mathoms.c locale.c pp_pack.c pp_sort.c caretx.c dquote.c time64.c
 c5 = $(mallocsrc)
 
-c = $(c1) $(c2) $(c3) $(c4) $(c5) miniperlmain.c opmini.c perlmini.c
+c = $(c1) $(c2) $(c3) $(c4) $(c5) miniperlmain.c opmini.c perlmini.c jitmini.c
 
 obj1 = $(mallocobj) gv$(OBJ_EXT) toke$(OBJ_EXT) perly$(OBJ_EXT) pad$(OBJ_EXT) regcomp$(OBJ_EXT) dump$(OBJ_EXT) util$(OBJ_EXT) mg$(OBJ_EXT) reentr$(OBJ_EXT) mro_core$(OBJ_EXT) keywords$(OBJ_EXT)
-obj2 = hv$(OBJ_EXT) av$(OBJ_EXT) jit$(OBJ_EXT) run$(OBJ_EXT) pp_hot$(OBJ_EXT) sv$(OBJ_EXT) pp$(OBJ_EXT) pp_type$(OBJ_EXT) scope$(OBJ_EXT) pp_ctl$(OBJ_EXT) pp_sys$(OBJ_EXT)
+obj2 = hv$(OBJ_EXT) av$(OBJ_EXT) run$(OBJ_EXT) pp_hot$(OBJ_EXT) sv$(OBJ_EXT) pp$(OBJ_EXT) pp_type$(OBJ_EXT) scope$(OBJ_EXT) pp_ctl$(OBJ_EXT) pp_sys$(OBJ_EXT)
 obj3 = doop$(OBJ_EXT) doio$(OBJ_EXT) regexec$(OBJ_EXT) utf8$(OBJ_EXT) taint$(OBJ_EXT) deb$(OBJ_EXT) universal$(OBJ_EXT) xsutils$(OBJ_EXT) globals$(OBJ_EXT) perlio$(OBJ_EXT) perlapi$(OBJ_EXT) numeric$(OBJ_EXT) mathoms$(OBJ_EXT) locale$(OBJ_EXT) pp_pack$(OBJ_EXT) pp_sort$(OBJ_EXT) caretx$(OBJ_EXT) dquote$(OBJ_EXT) time64$(OBJ_EXT)
 
 # split the objects into 3 exclusive sets: those used by both miniperl and
@@ -542,8 +542,8 @@ obj3 = doop$(OBJ_EXT) doio$(OBJ_EXT) regexec$(OBJ_EXT) utf8$(OBJ_EXT) taint$(OBJ
 # actual perl(mini)main.o, nor any dtrace objects.
 
 common_objs    = $(obj1) $(obj2) $(obj3) $(ARCHOBJS)
-mini_only_objs = opmini$(OBJ_EXT) perlmini$(OBJ_EXT)
-main_only_objs = op$(OBJ_EXT)     perl$(OBJ_EXT)
+mini_only_objs = opmini$(OBJ_EXT) perlmini$(OBJ_EXT) jitmini$(OBJ_EXT)
+main_only_objs = op$(OBJ_EXT)     perl$(OBJ_EXT)     jit$(OBJ_EXT)
 
 miniperl_objs_nodt = $(mini_only_objs) $(common_objs) miniperlmain$(OBJ_EXT)
 perllib_objs_nodt  = $(main_only_objs) $(common_objs)
@@ -564,15 +564,15 @@ define:define)
     $spitshell >>$Makefile <<'!NO!SUBS!'
 
 miniperl_dtrace_objs = $(miniperl_objs_nodt:%=mpdtrace/%)
-perllib_dtrace_objs = $(perllib_objs_nodt:%=libpdtrace/%)
+perllib_dtrace_objs  = $(perllib_objs_nodt:%=libpdtrace/%)
 perlmain_dtrace_objs = maindtrace/perlmain$(OBJ_EXT)
 
 miniperl_objs = $(miniperl_dtrace_objs) $(DTRACE_MINI_O)
-perllib_objs  = $(perllib_dtrace_objs) $(DTRACE_PERLLIB_O)
+perllib_objs  = $(perllib_dtrace_objs)  $(DTRACE_PERLLIB_O)
 perlmain_objs = $(perlmain_dtrace_objs) $(DTRACE_MAIN_O)
 
 miniperl_dep = $(DTRACE_MINI_O)
-perllib_dep = $(DTRACE_PERLLIB_O)
+perllib_dep  = $(DTRACE_PERLLIB_O)
 perlmain_dep = $(DTRACE_MAIN_O)
 
 !NO!SUBS!
@@ -581,11 +581,11 @@ perlmain_dep = $(DTRACE_MAIN_O)
     $spitshell >>$Makefile <<'!NO!SUBS!'
 
 miniperl_objs = $(miniperl_objs_nodt) $(DTRACE_MINI_O)
-perllib_objs  = $(perllib_objs_nodt) $(DTRACE_PERLLIB_O)
-perlmain_objs = perlmain$(OBJ_EXT) $(DTRACE_MAIN_O)
+perllib_objs  = $(perllib_objs_nodt)  $(DTRACE_PERLLIB_O)
+perlmain_objs = perlmain$(OBJ_EXT)    $(DTRACE_MAIN_O)
 
 miniperl_dep = $(miniperl_objs)
-perllib_dep = $(perllib_objs)
+perllib_dep  = $(perllib_objs)
 perlmain_dep = $(perlmain_objs)
 
 !NO!SUBS!
@@ -700,7 +700,7 @@ FORCE:
 	@sh -c true
 !GROK!THIS!
 
-for file in op perl; do
+for file in op perl jit; do
     if $issymlink $file.c; then
         $spitshell >>$Makefile <<!GROK!THIS!
 
@@ -830,9 +830,9 @@ $(LIBPERL_NONSHR): $(perllib_objs)
 	$(RMS) $(LIBPERL_NONSHR)
 	$(AR) $(ARFLAGS) $(LIBPERL_NONSHR) $(perllib_objs)
 
-$(MINIPERL_NONSHR): $(LIBPERL_NONSHR) miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT)  perlmini$(OBJ_EXT)
+$(MINIPERL_NONSHR): $(LIBPERL_NONSHR) miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) jitmini$(OBJ_EXT)
 	$(LD) $(LDFLAGS) -o $(MINIPERL_NONSHR) miniperlmain$(OBJ_EXT) \
-	    opmini$(OBJ_EXT) perlmini$(OBJ_EXT) $(LIBPERL_NONSHR) $(LIBS)
+	    opmini$(OBJ_EXT) perlmini$(OBJ_EXT) jitmini$(OBJ_EXT) $(LIBPERL_NONSHR) $(LIBS)
 
 MINIPERLEXP		= $(MINIPERL_NONSHR)
 
@@ -1017,7 +1017,7 @@ $(MINIPERL_EXE): lib/buildcustomize.pl
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
 	-@rm -f miniperl.xok
-	$(LD) $(CLDFLAGS) $(JITLINKFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(JITLIBFLAGS) $(libs)
+	$(LD) $(CLDFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(libs)
 #	$(LDLIBPTH) ./miniperl$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	$(MINIPERL) -f write_buildcustomize.pl
 !NO!SUBS!
@@ -1025,7 +1025,7 @@ lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
 	aix*)
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_objs)
-	$(LD) -o $(MINIPERL_EXE) $(CLDFLAGS) $(JITLINKFLAGS) $(miniperl_objs) $(JITLIBFLAGS) $(libs)
+	$(LD) -o $(MINIPERL_EXE) $(CLDFLAGS) $(miniperl_objs) $(libs)
 	$(LDLIBPTH) ./miniperl$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	$(MINIPERL) make_patchnum.pl && \
 	  $(MINIPERL) configpm && \
@@ -1035,7 +1035,7 @@ lib/buildcustomize.pl: $& $(miniperl_objs)
 	next4*)
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
-	$(LD) -o $(MINIPERL_EXE) $(JITLINKFLAGS) $(miniperl_objs) $(JITLIBFLAGS) $(libs)
+	$(LD) -o $(MINIPERL_EXE) $(miniperl_objs) $(libs)
 	$(LDLIBPTH) ./miniperl$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	$(MINIPERL) make_patchnum.pl && \
 	  $(MINIPERL) configpm && \
@@ -1058,7 +1058,7 @@ NAMESPACEFLAGS = -force_flat_namespace
 		$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl
 	-@rm -f miniperl.xok
-	$(LD) $(CLDFLAGS) $(JITLINKFLAGS) $(NAMESPACEFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs)$(JITLIBFLAGS) $(libs)
+	$(LD) $(CLDFLAGS) $(NAMESPACEFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(libs)
 !NO!SUBS!
                 case "$ccflags" in
                     *-DDEBUGGING*) $spitshell >>$Makefile <<'!NO!SUBS!'
@@ -1089,7 +1089,7 @@ lib/buildcustomize.pl: \$& \$(miniperl_dep) write_buildcustomize.pl
 			$spitshell >>$Makefile <<'!NO!SUBS!'
 lib/buildcustomize.pl: $& $(miniperl_dep) write_buildcustomize.pl
 	-@rm -f miniperl.xok
-	$(LD) $(CLDFLAGS) $(JITLINKFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(JITLIBFLAGS) $(libs)
+	$(LD) $(CLDFLAGS) -o $(MINIPERL_EXE) $(miniperl_objs) $(libs)
 	$(LDLIBPTH) ./miniperl$(HOST_EXE_EXT) -w -Ilib -Idist/Exporter/lib -MExporter -e '<?>' || sh -c 'echo >&2 Failed to build miniperl.  Please run make minitest; exit 1'
 	$(MINIPERL) make_patchnum.pl && \
 	  $(MINIPERL) configpm && \
@@ -1504,7 +1504,8 @@ veryclean:	_verycleaner _mopup _clobber
 
 # Do not 'make _mopup' directly.
 _mopup:
-	rm -f *$(OBJ_EXT) *$(LIB_EXT) all perlmain.c opmini.c perlmini.c generate_uudmap$(EXE_EXT) $(generated_headers)
+	rm -f *$(OBJ_EXT) *$(LIB_EXT) all perlmain.c opmini.c perlmini.c
+	rm -f jitmini.c generate_uudmap$(EXE_EXT) $(generated_headers)
 	-rmdir .depending
 	-@test -f extra.pods && rm -f `cat extra.pods`
 	-@test -f vms/README_vms.pod && rm -f vms/README_vms.pod
