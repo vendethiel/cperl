@@ -661,24 +661,25 @@ use File::Glob qw(:case);
             'lib/ExtUtils/MakeMaker/version/vpp.pm',
         ],
         # Applied upstream remove customisation when updating EUMM
-        # cperl skips the ending 'c'
-        # use -e not -f for solibs  
-        #'CUSTOMIZED'   => 
-        #  [ qw[ lib/ExtUtils/MM_Any.pm
-        #        lib/ExtUtils/MM_Unix.pm
-        #        lib/ExtUtils/Command/MM.pm
-        #        lib/ExtUtils/MakeMaker.pm
-        #        lib/ExtUtils/Mkbootstrap.pm
-        #        lib/ExtUtils/Liblist/Kid.pm
-        #        t/basic.t
-        #        t/Liblist.t
-        #        t/Mkbootstrap.t
-        #        t/pm_to_blib.t
-        #        t/prereq.t
-        #        t/vstrings.t ],
-        #    # Not yet submitted
-        #    qq[t/lib/MakeMaker/Test/NoXS.pm],
-        # ],
+        # cperl skips the ending 'c', silence make -s
+        # use -e not -f for symlinked libs
+        # PERL_USE_UNSAFE_INC=1
+        'CUSTOMIZED'   => 
+          [ qw[ 
+            lib/ExtUtils/MM_Unix.pm
+            lib/ExtUtils/MM_Win32.pm
+            lib/ExtUtils/Command/MM.pm
+            lib/ExtUtils/MakeMaker.pm
+            lib/ExtUtils/Mkbootstrap.pm
+            lib/ExtUtils/Liblist/Kid.pm
+            t/Liblist.t
+            t/MM_Cygwin.t
+            t/Mkbootstrap.t
+            t/miniperl.t
+            t/pod2man.t
+            t/prereq.t
+            t/prompt.t ],
+         ],
     },
 
     'ExtUtils::Manifest' => {

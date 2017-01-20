@@ -57,7 +57,9 @@ Update deprecation message
 fix decode_prefix offset when the string was re-allocated.
 rather return the relative offset not the pointer to the old start.
 
-=item ExtUtils::MakeMaker
+=item ExtUtils-MakeMaker 8.24_01
+
+Updated to 7.24, and re-added our cperl fixes.
 
 fix \Q$archname\E in t/basic.t
 
