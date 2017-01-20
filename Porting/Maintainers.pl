@@ -640,8 +640,16 @@ use File::Glob qw(:case);
     },
 
     'ExtUtils::MakeMaker' => {
+<<<<<<< HEAD
         'DISTRIBUTION' => 'BINGOS/ExtUtils-MakeMaker-7.04.tar.gz',
         'FILES'        => q[dist/ExtUtils-MakeMaker],
+||||||| merged common ancestors
+        'DISTRIBUTION' => 'BINGOS/ExtUtils-MakeMaker-7.04.tar.gz',
+        'FILES'        => q[cpan/ExtUtils-MakeMaker],
+=======
+        'DISTRIBUTION' => 'BINGOS/ExtUtils-MakeMaker-7.24.tar.gz',
+        'FILES'        => q[cpan/ExtUtils-MakeMaker],
+>>>>>>> ExtUtils-MakeMaker: Update to plain 7.24
         'EXCLUDED'     => [
             qr{^t/lib/Test/},
             qr{^(bundled|my)/},
@@ -655,22 +663,22 @@ use File::Glob qw(:case);
         # Applied upstream remove customisation when updating EUMM
         # cperl skips the ending 'c'
         # use -e not -f for solibs  
-        'CUSTOMIZED'   => 
-          [ qw[ lib/ExtUtils/MM_Any.pm
-                lib/ExtUtils/MM_Unix.pm
-                lib/ExtUtils/Command/MM.pm
-                lib/ExtUtils/MakeMaker.pm
-                lib/ExtUtils/Mkbootstrap.pm
-                lib/ExtUtils/Liblist/Kid.pm
-                t/basic.t
-                t/Liblist.t
-                t/Mkbootstrap.t
-                t/pm_to_blib.t
-                t/prereq.t
-                t/vstrings.t ],
-            # Not yet submitted
-            qq[t/lib/MakeMaker/Test/NoXS.pm],
-          ],
+        #'CUSTOMIZED'   => 
+        #  [ qw[ lib/ExtUtils/MM_Any.pm
+        #        lib/ExtUtils/MM_Unix.pm
+        #        lib/ExtUtils/Command/MM.pm
+        #        lib/ExtUtils/MakeMaker.pm
+        #        lib/ExtUtils/Mkbootstrap.pm
+        #        lib/ExtUtils/Liblist/Kid.pm
+        #        t/basic.t
+        #        t/Liblist.t
+        #        t/Mkbootstrap.t
+        #        t/pm_to_blib.t
+        #        t/prereq.t
+        #        t/vstrings.t ],
+        #    # Not yet submitted
+        #    qq[t/lib/MakeMaker/Test/NoXS.pm],
+        # ],
     },
 
     'ExtUtils::Manifest' => {
