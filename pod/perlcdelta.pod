@@ -371,6 +371,12 @@ C<(keys @_) = ...>, which are also errors.  L<[perl #128187]|https://rt.perl.org
 
 =over 4
 
+=item * if length($str) is faster
+
+length in boolean context without get magic doesn't need to handle
+utf8-ness, it only needs to check the SvCUR field.  Analog to L<[cperl
+#245]|https://github.com/perl11/cperl/issues/245> for ref.
+
 =item * if ref() is faster
 
 ref in boolean context doesn't need to allocate a string.
