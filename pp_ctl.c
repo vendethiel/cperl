@@ -2015,7 +2015,8 @@ PP(pp_caller)
 		mask = newSVsv(*bits_all);
 	    }
 	    else {
-		mask = newSVpvn(WARN_ALLstring, WARNsize) ;
+                SV *bytes = get_sv("warnings::BYTES", 0);
+		mask = newSVpvn(WARN_ALLstring, bytes ? SvIVX(bytes) : WARNsize);
 	    }
 	}
         else

@@ -85,6 +85,10 @@ sub check_bits
 {
     local $Level = $Level + 2;
     my ($got, $exp, $desc) = @_;
+    # Ignore XS warnings excessive bits
+    if (length($got) > length($exp)) {
+      $got = substr($got, 0, length($exp));
+    }
     if (! ok($got eq $exp, $desc)) {
         diag('     got: ' . show_bits($got));
         diag('expected: ' . show_bits($exp));
@@ -102,9 +106,10 @@ sub testwarn {
     # Build the warnings mask dynamically
     my ($default, $registered);
     BEGIN {
-	for my $i (0..$warnings::LAST_BIT/2 - 1) {
-	    vec($default, $i, 2) = 1;
-	}
+	#for my $i (0..$warnings::LAST_BIT/2 - 2) {
+	#    vec($default, $i, 2) = 1;
+	#}
+        $default = "\125" x $warnings::BYTES;
 	$registered = $default;
 	vec($registered, $warnings::LAST_BIT/2, 2) = 1;
     }
@@ -125,7 +130,6 @@ sub testwarn {
 			'warning bits on via "use warnings::register"' ) }
     testwarn($registered, 'following w::r');
 }
-
 
 # The next two cases test for a bug where caller ignored evals if
 # the DB::sub glob existed but &DB::sub did not (for example, if 
