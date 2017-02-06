@@ -4352,6 +4352,8 @@ ext/VMS-Stdio/Makefile.PL	MakeMaker driver for VMS::Stdio
 ext/VMS-Stdio/Stdio.pm		VMS options to stdio routines
 ext/VMS-Stdio/Stdio.xs		VMS options to stdio routines
 ext/VMS-Stdio/t/vms_stdio.t	regression tests for VMS::Stdio
+ext/warnings/DirHandle.boot	warnings-disabled DirHandle.pm
+ext/warnings/DirHandle.pm	warnings-enabled DirHandle.pm
 ext/warnings/Dummy.c		Persuade EUMM this is an XS
 ext/warnings/Makefile.PL	XS warnings extension makefile writer
 ext/warnings/register.pm	warnings::register extension

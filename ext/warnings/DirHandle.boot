@@ -1,6 +1,6 @@
 package DirHandle;
-
-our $VERSION = '1.05';
+# the miniperl version without warnings
+our $VERSION = '1.04';
 
 =head1 NAME 
 
@@ -28,6 +28,7 @@ namespace pollution by creating globs to hold directory handles.
 =cut
 
 require 5.000;
+use Carp;
 use Symbol;
 
 sub new ($class, $dirname?) {
@@ -39,20 +40,12 @@ sub new ($class, $dirname?) {
     bless $dh, $class;
 }
 
-sub DESTROY ($dh) {
-    # Don't warn about already being closed as it may have been closed 
-    # correctly, or maybe never opened at all.
-    local($., $@, $!, $^E, $?);
-    no warnings 'io';
-    closedir($dh);
-}
-
-sub open($dh, str $dirname) {
+sub open ($dh, str $dirname) {
     opendir($dh, $dirname);
 }
 
 sub close ($dh) {
-    closedir($dh);
+    closedir $dh;
 }
 
 sub read ($dh) {
