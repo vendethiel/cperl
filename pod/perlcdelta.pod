@@ -20,6 +20,16 @@ The rejected commits for the differences have been documented at the github issu
 L<[cperl #165]|https://github.com/perl11/cperl/issues/165> and
 L<[cperl #256]|https://github.com/perl11/cperl/issues/256>.
 
+=head1 Core Enhancements
+
+=head2 C3 MRO is the new default
+
+The default MRO switched from the DFS (depth-first-search) to the
+recommended C3 algorithm, which was previously optional. All object
+system based on inheritence need to use C3 to avoid the diamond
+problem. And this change speeds it up, avoiding run-time loading of
+F<ext/mro>.
+
 =head1 Deprecations
 
 See the new L<perldeprecation> pod.
