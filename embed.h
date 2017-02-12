@@ -990,6 +990,7 @@
 #define signature_stringify(a,b)	Perl_signature_stringify(aTHX_ a,b)
 #define sv_magicext_mglob(a)	Perl_sv_magicext_mglob(aTHX_ a)
 #define sv_only_taint_gmagic	S_sv_only_taint_gmagic
+#define sv_sethek(a,b)		Perl_sv_sethek(aTHX_ a,b)
 #define swash_fetch(a,b,c)	Perl_swash_fetch(aTHX_ a,b,c)
 #define swash_init(a,b,c,d,e)	Perl_swash_init(aTHX_ a,b,c,d,e)
 #define validate_proto(a,b,c)	Perl_validate_proto(aTHX_ a,b,c)
@@ -1442,7 +1443,6 @@
 #define sv_len_utf8_nomg(a)	Perl_sv_len_utf8_nomg(aTHX_ a)
 #define sv_mortalcopy_flags(a,b)	Perl_sv_mortalcopy_flags(aTHX_ a,b)
 #define sv_resetpvn(a,b,c)	Perl_sv_resetpvn(aTHX_ a,b,c)
-#define sv_sethek(a,b)		Perl_sv_sethek(aTHX_ a,b)
 #ifndef PERL_IMPLICIT_CONTEXT
 #define tied_method		Perl_tied_method
 #endif
