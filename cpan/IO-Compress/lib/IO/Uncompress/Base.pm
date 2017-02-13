@@ -6,7 +6,7 @@ use warnings;
 #use bytes;
 
 our (@ISA, $VERSION, @EXPORT_OK, %EXPORT_TAGS);
-@ISA    = qw(Exporter IO::File);
+@ISA    = qw(IO::File Exporter);
 
 
 $VERSION = '2.070';

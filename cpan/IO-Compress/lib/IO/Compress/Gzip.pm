@@ -28,7 +28,7 @@ our ($VERSION, @ISA, @EXPORT_OK, %EXPORT_TAGS, %DEFLATE_CONSTANTS, $GzipError);
 $VERSION = '2.070';
 $GzipError = '' ;
 
-@ISA    = qw(Exporter IO::Compress::RawDeflate);
+@ISA    = qw(IO::Compress::RawDeflate Exporter);
 @EXPORT_OK = qw( $GzipError gzip ) ;
 %EXPORT_TAGS = %IO::Compress::RawDeflate::DEFLATE_CONSTANTS ;
 

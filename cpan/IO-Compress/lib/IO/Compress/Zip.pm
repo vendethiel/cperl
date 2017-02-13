@@ -39,7 +39,7 @@ our ($VERSION, @ISA, @EXPORT_OK, %EXPORT_TAGS, %DEFLATE_CONSTANTS, $ZipError);
 $VERSION = '2.070';
 $ZipError = '';
 
-@ISA = qw(Exporter IO::Compress::RawDeflate);
+@ISA = qw(IO::Compress::RawDeflate Exporter);
 @EXPORT_OK = qw( $ZipError zip ) ;
 %EXPORT_TAGS = %IO::Compress::RawDeflate::DEFLATE_CONSTANTS ;
 

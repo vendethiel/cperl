@@ -18,7 +18,7 @@ use Symbol();
 #use bytes;
 
 our (@ISA, $VERSION);
-@ISA    = qw(Exporter IO::File);
+@ISA    = qw(IO::File Exporter);
 
 $VERSION = '2.070';
 

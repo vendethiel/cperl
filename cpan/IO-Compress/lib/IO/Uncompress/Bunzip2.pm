@@ -15,7 +15,7 @@ our ($VERSION, @ISA, @EXPORT_OK, %EXPORT_TAGS, $Bunzip2Error);
 $VERSION = '2.070';
 $Bunzip2Error = '';
 
-@ISA    = qw( Exporter IO::Uncompress::Base );
+@ISA    = qw(IO::Uncompress::Base Exporter);
 @EXPORT_OK = qw( $Bunzip2Error bunzip2 ) ;
 #%EXPORT_TAGS = %IO::Uncompress::Base::EXPORT_TAGS ;
 push @{ $EXPORT_TAGS{all} }, @EXPORT_OK ;

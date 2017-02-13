@@ -17,7 +17,7 @@ our ($VERSION, @ISA, @EXPORT_OK, %EXPORT_TAGS, %DEFLATE_CONSTANTS, $RawInflateEr
 $VERSION = '2.070';
 $RawInflateError = '';
 
-@ISA    = qw( Exporter IO::Uncompress::Base );
+@ISA    = qw(IO::Uncompress::Base Exporter);
 @EXPORT_OK = qw( $RawInflateError rawinflate ) ;
 %DEFLATE_CONSTANTS = ();
 %EXPORT_TAGS = %IO::Uncompress::Base::EXPORT_TAGS ;

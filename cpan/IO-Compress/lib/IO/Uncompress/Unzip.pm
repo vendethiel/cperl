@@ -21,7 +21,7 @@ use Compress::Raw::Zlib  2.070 () ;
 BEGIN
 {
     eval{ require IO::Uncompress::Adapter::Bunzip2 ;
-           import  IO::Uncompress::Adapter::Bunzip2 } ;
+          import  IO::Uncompress::Adapter::Bunzip2 } ;
     eval{ require IO::Uncompress::Adapter::UnLzma ;
           import  IO::Uncompress::Adapter::UnLzma } ;
 }
@@ -34,7 +34,7 @@ our ($VERSION, @ISA, @EXPORT_OK, %EXPORT_TAGS, $UnzipError, %headerLookup);
 $VERSION = '2.070';
 $UnzipError = '';
 
-@ISA    = qw(Exporter IO::Uncompress::RawInflate);
+@ISA    = qw(IO::Uncompress::RawInflate Exporter);
 @EXPORT_OK = qw( $UnzipError unzip );
 %EXPORT_TAGS = %IO::Uncompress::RawInflate::EXPORT_TAGS ;
 push @{ $EXPORT_TAGS{all} }, @EXPORT_OK ;
