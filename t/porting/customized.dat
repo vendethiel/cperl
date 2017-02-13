@@ -69,8 +69,8 @@ Math::BigInt cpan/Math-BigInt/t/bare_mbi.t 61e023543c8171630aa848bde9b602de466b3
 Math::BigInt cpan/Math-BigInt/t/bare_mif.t abfcfd3c26b3c3bb18b42a3ca211dc262889ce34
 Math::BigInt cpan/Math-BigInt/t/bigfltpm.t 9c913a69417e3e2e348a2f5f7457365fdac7f81a
 Math::BigInt cpan/Math-BigInt/t/bigintpm.t cd152820f7b5342c64e71b8abc2ab140569469bc
-Math::BigInt cpan/Math-BigInt/t/Math/BigFloat/Subclass.pm a323fbde83f97abdedc14ff923a2ecabb1333e2d
-Math::BigInt cpan/Math-BigInt/t/Math/BigInt/Subclass.pm 69c77dbdb12adb852836eaebb0c6957154de4e19
+Math::BigInt cpan/Math-BigInt/t/Math/BigFloat/Subclass.pm ed28da618fe54da4ab6262d2459896b61c38b597
+Math::BigInt cpan/Math-BigInt/t/Math/BigInt/Subclass.pm 3f15444c9efd2720beab72481ce950192932794f
 Math::BigInt cpan/Math-BigInt/t/mbf_ali.t 286e7a02e78efa09fc330b31c44017884dcfd0b2
 Math::BigInt cpan/Math-BigInt/t/mbi_ali.t 7c85e0409317d0108acba69ee14dec977d385a46
 Math::BigInt cpan/Math-BigInt/t/mbimbf.inc 9fa49eee70b8f7a911f0afd1b9a11eee672425f5
@@ -80,7 +80,7 @@ Math::BigInt cpan/Math-BigInt/t/sub_mbf.t fbfa7a4d7732a1bf9f327ff6728af3db63ccfc
 Math::BigInt cpan/Math-BigInt/t/sub_mbi.t 988e18d7d3ab8879e501b9039af8c16d2d81f103
 Math::BigInt cpan/Math-BigInt/t/sub_mif.t e87738bd15116665c38d9f41b310cfe7fbf6da27
 Math::BigInt cpan/Math-BigInt/t/upgrade.t 7c15cac7f321ca396648ec45da6389a1283e1546
-Math::BigInt cpan/Math-BigInt/t/upgradef.t 3440f761c862ded333771daf6ce7e338385fe9a8
+Math::BigInt cpan/Math-BigInt/t/upgradef.t 06610e9883ce805bcd6543ab959a9826f598eb40
 Math::BigInt cpan/Math-BigInt/t/with_sub.t 2bcac73a0a31994b0e3fa24e3cd42594f5fc2889
 Module::CoreList dist/Module-CoreList/lib/Module/CoreList.pm 8c51cc0573560a64abed02b27e6b7b2e0ad0ce60
 Module::CoreList dist/Module-CoreList/lib/Module/CoreList/Utils.pm 6e65148087aa1d4c440b40b7db75841d1a81b2b5
