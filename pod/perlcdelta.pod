@@ -30,6 +30,9 @@ system based on inheritence need to use C3 to avoid the diamond
 problem. And this change speeds it up, avoiding run-time loading of
 F<ext/mro>.
 
+Esp. C<Exporter> needs to be at the end of the C<@ISA> chain for
+subclassing.
+
 =head1 Deprecations
 
 See the new L<perldeprecation> pod.
