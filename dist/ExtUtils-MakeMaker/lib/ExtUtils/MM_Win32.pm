@@ -25,8 +25,8 @@ use File::Spec;
 use ExtUtils::MakeMaker qw( neatvalue );
 
 require ExtUtils::MM_Unix;
-our @ISA = qw( ExtUtils::MM_Any ExtUtils::MM_Unix );
-our $VERSION = '8.04_04';
+our @ISA = qw( ExtUtils::MM_Unix ExtUtils::MM_Any );
+our $VERSION = '8.04_05';
 
 $ENV{EMXSHELL} = 'sh'; # to run `commands`
 

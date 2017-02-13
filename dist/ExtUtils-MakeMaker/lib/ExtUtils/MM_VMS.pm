@@ -15,10 +15,10 @@ BEGIN {
 
 use File::Basename;
 
-our $VERSION = '8.04_04';
+our $VERSION = '8.04_05';
 
 require ExtUtils::MM_Unix;
-our @ISA = qw( ExtUtils::MM_Any ExtUtils::MM_Unix );
+our @ISA = qw( ExtUtils::MM_Unix ExtUtils::MM_Any );
 
 use ExtUtils::MakeMaker qw($Verbose neatvalue);
 our $Revision = $ExtUtils::MakeMaker::Revision;
