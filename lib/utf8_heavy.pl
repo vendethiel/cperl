@@ -434,6 +434,9 @@ sub _loose_name ($) {
                     # The pseudo-directory '#' means that there really isn't a
                     # file to read, the data is in-line as part of the string;
                     # we extract it below.
+                    my $path = $INC{"$unicore_dir/Heavy.pl"};
+                    $path =~ s|/Heavy\.pl$||;
+                    $unicore_dir = $path if -d $path;
                     $file = "$unicore_dir/lib/$file.pl" unless $file =~ m!^#/!;
                     last GETFILE;
                 }
@@ -486,7 +489,7 @@ sub _loose_name ($) {
                             # The 0+ makes sure is numeric
                             $invert_it = 0 + $file =~ s/!//;
                             $file = "$unicore_dir/lib/$file.pl"
-                                                         unless $file =~ m!^#/!;
+                              unless $file =~ m!^#/!;
                             last GETFILE;
                         }
                     }
@@ -530,7 +533,8 @@ sub _loose_name ($) {
 
                     local $@;
                     local $!;
-                    $list = do $file; die $@ if $@;
+                    # $file is now absolute
+                    $list = require $file; die $@ if $@;
                 }
 
                 $list_is_from_mktables = 1;

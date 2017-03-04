@@ -27,6 +27,14 @@ See the new L<perldeprecation> pod.
 Many old deprecations got now a fixed final date, but several perl5 deprecations
 were undeprecated in cperl and rather fixed. I<(as in previous cperl releases.)>
 
+=over
+
+=item do "file" will stop searching @INC
+
+See L<perldeprecation/do "file" will stop searching @INC>
+
+=back
+
 =head1 Performance Enhancements
 
 =over 4

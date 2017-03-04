@@ -233,7 +233,10 @@ SKIP: {
   local $^W;
   use warnings;
   my $w;
-  local $SIG{__WARN__} = sub { warn shift; ++$w };
+  local $SIG{__WARN__} = sub {
+      return if $_[0] =~ /^do "file" will stop searching/;
+      warn shift; ++$w
+  };
   do '/eval_do' or die $@;
   is($w, undef, 'do STRING does not propagate warning hints');
 }
@@ -304,5 +307,46 @@ SKIP: {
     f(do { 1; !!(my $x = bless []); });
 }
 
+# do "file" will stop searching @INC
+{
+    # find local file
+    my $file = tempfile();
+    if (open my $do, '>', $file) {
+        print $do "ok(1, 'do finds local file');\n";
+        close $do or die "Could not close: $!";
+    }
+    do $file; die $@ if $@;
+    
+    # warn searched and found file. will change with 5.28
+    my $w;
+    my $path = $INC[1]; # ../lib
+    $path = $INC[-2] if $path eq '.';
+    if ($path) {
+        my $pathsep = $^O =~ /^MSWin32|WinCE$/ ? "\\" : "/";
+        $path = $path . $pathsep . $file;
+        if ($path =~ /^\./) {
+          eval {
+            require File::Spec and
+              $path = File::Spec->rel2abs($path);
+          }
+        }
+        if (open my $do, '>', $path) {
+            local $SIG{__WARN__} = sub { $w = shift; $w };
+            print $do "ok(1, 'do finds file in INC');\n";
+            close $do or die "Could not close: $!";
+            $w = '';
+            do $path; die $@ if $@;
+            is($w, '', "do finds absolute file $path");
+            $w = '';
+            do $file;
+            like($w, qr/do "file" will stop searching \@INC/, 
+                 "deprecation warning with $file");
+            unlink $path;
+        } else {
+            diag "$path not writable, cannot test "
+               . "do \"file\" will stop searching \@INC";
+        }
+    }
+}
 
 done_testing();

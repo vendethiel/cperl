@@ -240,9 +240,12 @@ sub alias_file ($)  # Reads a file containing alias definitions
   else {
     croak "Charnames alias file names can only have identifier characters";
   }
-  if (my @alias = do $file) {
-    @alias == 1 && !defined $alias[0] and
-      croak "$file cannot be used as alias file for charnames";
+  my @alias;
+  eval { @alias = require $file; };
+  push @alias, 0 if $@ =~ / did not return a true value /;
+  if ($@ =~ /^Can't locate / or (@alias == 1 && !defined $alias[0])) {
+    croak "$file cannot be used as alias file for charnames";
+  } else {
     @alias % 2 and
       croak "$file did not return a (valid) list of alias pairs";
     alias (@alias);
@@ -407,7 +410,7 @@ sub lookup_name ($$$) {
       ##     "00052\tLATIN CAPITAL LETTER R\n"
       # or
       #      "0052 0303\tLATIN CAPITAL LETTER R WITH TILDE\n"
-      $txt = do "unicore/Name.pl" unless $txt;
+      $txt = require "unicore/Name.pl" unless $txt;
 
       ## @off will hold the index into the code/name string of the start and
       ## end of the name as we find it.
@@ -679,7 +682,7 @@ sub import
   ## see if at least we can find one letter from each script.
   ##
   if (warnings::enabled('utf8') && @scripts) {
-    $txt = do "unicore/Name.pl" unless $txt;
+    $txt = require "unicore/Name.pl" unless $txt;
 
     for my $script (@scripts) {
       if (not $txt =~ m/\t$script (?:CAPITAL |SMALL )?LETTER /) {
@@ -757,7 +760,7 @@ sub viacode {
   # If the code point is above the max in the table, there's no point
   # looking through it.  Checking the length first is slightly faster
   if (length($hex) <= 5 || CORE::hex($hex) <= 0x10FFFF) {
-    $txt = do "unicore/Name.pl" unless $txt;
+    $txt = require "unicore/Name.pl" unless $txt;
 
     # See if the name is algorithmically determinable.
     my $algorithmic = charnames::code_point_to_name_special(CORE::hex $hex);

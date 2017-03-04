@@ -3,7 +3,7 @@
 use strict;
 
 my $osname = $^O;
-my $file = 'lib/buildcustomize.pl';
+my $file = './lib/buildcustomize.pl';
 
 if ( @ARGV % 2 ) {
     my $dir = shift;

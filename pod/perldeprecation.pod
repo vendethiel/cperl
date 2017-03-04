@@ -227,6 +227,22 @@ use an empty line as the terminator of the here-document:
   # Previous blank line ends the here-document.
 
 
+=head3 do "file" will stop searching @INC
+
+C<do "string"> tradionally searched the string as filename first in F<.> and then
+in the complete C<@INC> search-path. However since v5.26 and v5.24c "." is not in
+C<@INC> anymore, hence the most popular usage of C<do "config.pl"> stopped working,
+it needed to be changed to C<do "./config.pl">.
+
+perl5 will re-add F<.> to C<@INC> for C<do>, cperl will rather stop searching
+C<@INC> for the file if it's given no path prefix.
+The easiest fix is do add a "./" prefix by yourself, or if it needs to be searched
+in C<@INC> use C<require> or an absolute path prefix instead.
+
+Note that the current warning message C<<< do "file" will stop searching
+@INC, and will disappear in Perl 5.28 >>> as a bit misleading. C<do "file">
+will not disappear with 5.28, only seaching C<@INC> will disappear.
+
 =head3 Setting $/ to a reference to a non-positive integer
 
 You assigned a reference to a scalar to C<$/> where the

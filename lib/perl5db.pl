@@ -1266,8 +1266,8 @@ EO_GRIPE
         return;
     } ## end unless (is_safe_file($file...
 
-    do $file;
-    CORE::warn("perldb: couldn't parse $file: $@") if $@;
+    require $file;
+    CORE::warn("perldb: couldn't parse $file: $!") if $!;
 } ## end sub safe_do
 
 # This is the safety test itself.
@@ -1967,7 +1967,7 @@ sub _DB__handle_y_command {
         }
 
         # Load up dumpvar if we don't have it. If we can, that is.
-        do 'dumpvar.pl' || die $@ unless defined &main::dumpvar;
+        require 'dumpvar.pl'; # || die $@ unless defined &main::dumpvar;
         defined &main::dumpvar
             or print $OUT "dumpvar.pl not available.\n"
             and next CMD;
@@ -3498,7 +3498,7 @@ sub _handle_V_command_and_X_command {
         my @vars     = split( ' ', $new_vars_str );
 
         # If main::dumpvar isn't here, get it.
-        do 'dumpvar.pl' || die $@ unless defined &main::dumpvar;
+        require 'dumpvar.pl'; # || die $@ unless defined &main::dumpvar;
         if ( defined &main::dumpvar ) {
 
             # We got it. Turn off subroutine entry/exit messages
@@ -6405,9 +6405,7 @@ sub dumpit {
     local $doret = -2;
 
     # Load dumpvar.pl unless we've already got the sub we need from it.
-    unless ( defined &main::dumpValue ) {
-        do 'dumpvar.pl' or die $@;
-    }
+    require 'dumpvar.pl';
 
     # If the load succeeded (or we already had dumpvalue()), go ahead
     # and dump things.

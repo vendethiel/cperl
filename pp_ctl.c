@@ -3926,6 +3926,11 @@ Handle C<require Foo::Bar>, C<require "Foo/Bar.pm"> and C<do "Foo.pm">.
 
 The first form will have already been converted at compile time to
 the second form.
+
+C<require> searches C<@INC> (without F<.>), C<do> will not search
+C<@INC>, only F<./>.  However in perl5 C<do> searches C<@INC>,
+including F<.>.
+
 =cut
 */
 static OP *
@@ -3944,8 +3949,6 @@ S_require_file(pTHX_ SV *sv)
 #endif
     char *tryname = NULL;
     SV *namesv = NULL;
-    const U8 gimme = GIMME_V;
-    int filter_has_file = 0;
     PerlIO *tryrsfp = NULL;
     SV *filter_cache = NULL;
     SV *filter_state = NULL;
@@ -3953,10 +3956,13 @@ S_require_file(pTHX_ SV *sv)
     SV *hook_sv = NULL;
     OP *op;
     int saved_errno;
-    bool path_searchable;
+    int filter_has_file = 0;
     I32 old_savestack_ix;
+    const U8 gimme = GIMME_V;
     const bool op_is_require = PL_op->op_type == OP_REQUIRE;
     const char *const op_name = op_is_require ? "require" : "do";
+    bool path_searchable;
+    bool searched_inc = FALSE;
 
     PERL_ARGS_ASSERT_REQUIRE_FILE;
     assert(op_is_require || PL_op->op_type == OP_DOFILE);
@@ -3990,6 +3996,7 @@ S_require_file(pTHX_ SV *sv)
     }
     TAINT_PROPER(op_name);
 
+    /* check for "./" or "/" */
     path_searchable = path_is_searchable(name);
 
 #ifdef VMS
@@ -4073,9 +4080,9 @@ S_require_file(pTHX_ SV *sv)
 
     PERL_DTRACE_PROBE_LOAD_ENTRY(unixname);
 
-    /* prepare to compile file */
+    /* search and prepare to compile file */
 
-    if (!path_searchable) { /* absolute path */
+    if (!path_searchable || !op_is_require) { /* absolute path or do */
 	/* At this point, name is SvPVX(sv)  */
 	tryname = (char*)name;
 	tryrsfp = doopen_pm(sv, 0); /* absolute do not expand pmc */
@@ -4083,6 +4090,8 @@ S_require_file(pTHX_ SV *sv)
     if (!tryrsfp && !(errno == EACCES && !path_searchable)) {
 	AV * const ar = GvAVn(PL_incgv);
 	SSize_t i;
+
+        searched_inc = TRUE;
 #ifdef VMS
 	if (vms_unixname)
 #endif
@@ -4378,8 +4387,13 @@ S_require_file(pTHX_ SV *sv)
             RETPUSHUNDEF;
         }
     }
-    else
+    else { /* found in @INC */
 	SETERRNO(0, SS_NORMAL);
+        if (searched_inc && !op_is_require) {
+            deprecate_disappears_in("5.28",
+                "do \"file\" will stop searching @INC");
+        }
+    }
 
     /* Assume success here to prevent recursive requirement. */
     /* name is never assigned to again, so len is still strlen(name)  */

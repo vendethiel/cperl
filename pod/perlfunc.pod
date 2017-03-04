@@ -1824,13 +1824,15 @@ Using C<do> with no path, like
 
     do 'stat.pl';
 
-will search the L<C<@INC>|perlvar/@INC> directories, and update
-L<C<%INC>|perlvar/%INC> if the file is found.  See L<perlvar/@INC>
-and L<perlvar/%INC> for these variables. In particular, note that
-whilst historically L<C<@INC>|perlvar/@INC> contained '.' (the
-current directory) making these two cases equivalent, that is no
-longer necessarily the case, as there is now a compile-time option
-to disable this behaviour.
+will search the L<C<@INC>|perlvar/@INC> directories, but this
+behaviour is deprecated in cperl and will disappear with v5.28c.
+
+It will also update L<C<%INC>|perlvar/%INC> if the file is found.  See
+L<perlvar/@INC> and L<perlvar/%INC> for these variables. In
+particular, note that whilst historically L<C<@INC>|perlvar/@INC>
+contained '.' (the current directory) making these two cases
+equivalent, that is no longer necessarily the case, as there is now a
+compile-time option to disable this behaviour.
 
 If L<C<do>|/do EXPR> can read the file but cannot compile it, it
 returns L<C<undef>|/undef EXPR> and sets an error message in
@@ -1839,6 +1841,9 @@ returns undef and sets L<C<$!>|perlvar/$!> to the error.  Always check
 L<C<$@>|perlvar/$@> first, as compilation could fail in a way that also
 sets L<C<$!>|perlvar/$!>.  If the file is successfully compiled,
 L<C<do>|/do EXPR> returns the value of the last expression evaluated.
+Note that the error behavior with a not found file is different to
+L</require FILE>. require is verbose and sets C<$@>, and do is silent
+and only sets C<$!>.
 
 Inclusion of library modules is better done with the
 L<C<use>|/use Module VERSION LIST> and L<C<require>|/require VERSION>

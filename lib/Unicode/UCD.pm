@@ -575,11 +575,12 @@ sub _read_table ($;$) {
     my @return;
     my %return;
     local $_;
-    my $list = do "unicore/$table";
+    my $list = require "unicore/$table";
 
     # Look up if this property requires adjustments, which we do below if it
     # does.
     require "unicore/Heavy.pl";
+
     my $property = $table =~ s/\.pl//r;
     $property = $utf8::file_to_swash_name{$property};
     my $to_adjust = defined $property
